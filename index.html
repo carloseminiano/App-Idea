@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#070b14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sentinel PH" />
+  <title>Sentinel PH — Situational Awareness, Market & Force Terminal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            void: '#070b14',
+            panel: '#0e1626',
+            panel2: '#141f35',
+            line: '#22314e',
+            cyan: '#22d3ee',
+            amber: '#fbbf24',
+            rose: '#f43f5e',
+            emerald: '#34d399',
+            violet: '#a78bfa'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      --bg-void: #070b14;
+      --bg-panel: #0e1626;
+      --bg-panel-2: #141f35;
+      --border-subtle: #22314e;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-void);
+      color: #f1f5f9;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      overscroll-behavior-y: contain;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .thin-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .thin-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    .thin-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 999px;
+    }
+
+    .glass-header {
+      background: rgba(7, 11, 20, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .bottom-nav-bar {
+      padding-bottom: calc(8px + var(--safe-bottom));
+      background: rgba(10, 16, 30, 0.97);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .sheet-backdrop {
+      animation: fadeIn 0.16s ease-out forwards;
+    }
+    .sheet-panel {
+      animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    mark.kw-hit {
+      background: rgba(251, 191, 36, 0.24);
+      color: #fde68a;
+      border-radius: 3px;
+      padding: 0 2px;
+      font-weight: 600;
+    }
+
+    .card-hover {
+      transition: transform 0.14s ease, border-color 0.14s ease, background-color 0.14s ease;
+    }
+    .card-hover:active {
+      transform: scale(0.99);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-void text-slate-100 selection:bg-cyan/30 selection:text-cyan">
+
+  <!-- TOP COMMAND HEADER -->
+  <header class="sticky top-0 z-30 glass-header border-b border-line">
+    <div class="max-w-3xl mx-auto px-3 pt-2.5 pb-2 space-y-2">
+      <!-- Brand + Alert + Actions Row -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan/25 via-blue-500/20 to-emerald/20 border border-cyan/40 flex items-center justify-center shrink-0">
+            <span class="text-sm">🛡️</span>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-sm font-bold tracking-tight text-white truncate">SENTINEL PH</h1>
+              <span id="alert-badge" class="px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase rounded border bg-emerald/15 text-emerald border-emerald/40">
+                LOW ALERT
+              </span>
+            </div>
+            <p id="sync-status-line" class="text-[10px] text-slate-400 truncate font-mono">
+              Ready • Offline cache active
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button type="button" id="btn-install-app" data-action="install-app" title="Add Sentinel PH shortcut or install app"
+            class="px-2 py-1.5 rounded-lg text-[11px] font-semibold border border-cyan/40 bg-cyan/15 text-cyan hover:bg-cyan/25 transition flex items-center gap-1 cursor-pointer">
+            <span>📲</span>
+            <span id="install-btn-label">Shortcut</span>
+          </button>
+          <button type="button" id="btn-preshift" data-action="toggle-preshift" title="Show only urgent 12-hour operational/commute/weather alerts"
+            class="px-2 py-1.5 rounded-lg text-[11px] font-semibold border border-line bg-panel text-slate-300 hover:border-amber/50 hover:text-amber transition flex items-center gap-1 cursor-pointer">
+            <span>⚡</span>
+            <span>Pre-Shift</span>
+          </button>
+          <button type="button" id="btn-sync" data-action="sync-all" title="Sync RSS feeds, Weather, FX & Crypto"
+            class="p-1.5 rounded-lg border border-line bg-panel text-cyan hover:bg-panel2 transition cursor-pointer" aria-label="Sync Now">
+            <svg id="sync-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button type="button" data-action="open-watchlist" title="Watchlist & Smart Presets"
+            class="p-1.5 rounded-lg border border-line bg-panel text-slate-300 hover:text-white hover:border-slate-500 transition cursor-pointer" aria-label="Settings and Watchlist">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3 COMPACT TELEMETRY DRAWER PILLS (Weather | Multi-FX | Crypto) -->
+      <div class="grid grid-cols-3 gap-1.5">
+        <button type="button" data-action="toggle-drawer" data-drawer="weather"
+          class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-panel border border-line hover:border-cyan/40 text-left transition cursor-pointer">
+          <div class="min-w-0">
+            <div class="text-[9px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span>🌤️</span>
+              <span id="wx-pill-loc" class="truncate">Angeles/Clark</span>
+            </div>
+            <div id="wx-pill-val" class="text-xs font-mono font-bold text-cyan truncate">31°C • 35%</div>
+          </div>
+          <span class="text-[10px] text-slate-500 ml-1">▾</span>
+        </button>
+
+        <button type="button" data-action="toggle-drawer" data-drawer="fx"
+          class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-panel border border-line hover:border-emerald/40 text-left transition cursor-pointer">
+          <div class="min-w-0">
+            <div class="text-[9px] uppercase tracking-wider text-slate-400">💱 FX (6 Pairs)</div>
+            <div id="fx-pill-val" class="text-xs font-mono font-bold text-emerald truncate">₱63.85/USD</div>
+          </div>
+          <span class="text-[10px] text-slate-500 ml-1">▾</span>
+        </button>
+
+        <button type="button" data-action="toggle-drawer" data-drawer="crypto"
+          class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-panel border border-line hover:border-amber/40 text-left transition cursor-pointer">
+          <div class="min-w-0">
+            <div class="text-[9px] uppercase tracking-wider text-slate-400">₿ Crypto & Risk</div>
+            <div id="crypto-pill-val" class="text-xs font-mono font-bold text-amber truncate">BTC $94.2k</div>
+          </div>
+          <span class="text-[10px] text-slate-500 ml-1">▾</span>
+        </button>
+      </div>
+
+      <!-- EXPANDABLE TELEMETRY DRAWER CONTAINER -->
+      <div id="telemetry-drawer" class="hidden rounded-xl bg-panel2 border border-line p-2.5 text-xs"></div>
+
+      <!-- GLOBAL INSTANT SEARCH BAR -->
+      <div class="relative flex items-center">
+        <span class="absolute left-2.5 text-slate-400 text-xs pointer-events-none">🔍</span>
+        <input id="global-search" type="search" placeholder="Search news, Clark, NLEX, BPO, AI, EVs, billionaires, crime..."
+          class="w-full pl-8 pr-16 py-1.5 rounded-lg bg-panel border border-line text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan" />
+        <button type="button" id="btn-clear-search" data-action="clear-search"
+          class="hidden absolute right-2 px-1.5 py-0.5 text-[10px] rounded bg-slate-800 text-slate-300 hover:text-white cursor-pointer">
+          Clear
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT AREA -->
+  <main id="main-content" class="flex-1 max-w-3xl w-full mx-auto px-3 pt-2.5 pb-24 space-y-3">
+  </main>
+
+  <!-- STICKY BOTTOM THUMB NAVIGATION -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 bottom-nav-bar border-t border-line">
+    <div class="max-w-3xl mx-auto grid grid-cols-4 px-1 pt-1">
+      <button type="button" data-action="switch-nav" data-nav="radar"
+        class="nav-item flex flex-col items-center justify-center py-1 rounded-lg text-cyan bg-cyan/10 transition cursor-pointer">
+        <span class="text-base leading-none">📡</span>
+        <span class="text-[10px] font-semibold mt-1">Radar</span>
+      </button>
+      <button type="button" data-action="switch-nav" data-nav="offshift"
+        class="nav-item flex flex-col items-center justify-center py-1 rounded-lg text-slate-400 hover:text-slate-200 transition cursor-pointer">
+        <span class="text-base leading-none">🌴</span>
+        <span class="text-[10px] font-medium mt-1">Off-Shift</span>
+      </button>
+      <button type="button" data-action="switch-nav" data-nav="military"
+        class="nav-item flex flex-col items-center justify-center py-1 rounded-lg text-slate-400 hover:text-slate-200 transition cursor-pointer">
+        <span class="text-base leading-none">🎖️</span>
+        <span class="text-[10px] font-medium mt-1">Military</span>
+      </button>
+      <button type="button" data-action="switch-nav" data-nav="saved"
+        class="nav-item flex flex-col items-center justify-center py-1 rounded-lg text-slate-400 hover:text-slate-200 transition relative cursor-pointer">
+        <span class="text-base leading-none">🔖</span>
+        <span class="text-[10px] font-medium mt-1">Saved</span>
+        <span id="saved-count-badge" class="hidden absolute top-0.5 right-3 px-1 min-w-[16px] h-4 rounded-full bg-cyan text-void text-[9px] font-mono font-bold flex items-center justify-center">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- DEEP-DIVE BRIEFING & LINK BOTTOM SHEET -->
+  <div id="deep-dive-modal" class="hidden fixed inset-0 z-40 sheet-backdrop bg-black/75 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div id="deep-dive-sheet" class="sheet-panel w-full max-w-2xl max-h-[90vh] rounded-t-2xl sm:rounded-2xl bg-panel border border-line flex flex-col overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-line bg-panel2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span id="dd-domain-pill" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-cyan/15 text-cyan border border-cyan/30"></span>
+          <span id="dd-source-tier" class="text-[11px] text-slate-400 truncate"></span>
+        </div>
+        <button type="button" data-action="close-modal" data-target="deep-dive-modal"
+          class="w-7 h-7 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs font-bold cursor-pointer">
+          ✕
+        </button>
+      </div>
+      <div id="dd-body" class="p-4 overflow-y-auto thin-scroll space-y-3 text-sm leading-relaxed">
+      </div>
+    </div>
+  </div>
+
+  <!-- WATCHLIST & SMART PRESETS MODAL -->
+  <div id="watchlist-modal" class="hidden fixed inset-0 z-40 sheet-backdrop bg-black/75 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="sheet-panel w-full max-w-lg max-h-[88vh] rounded-t-2xl sm:rounded-2xl bg-panel border border-line flex flex-col overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-line bg-panel2">
+        <div>
+          <h2 class="text-sm font-bold text-white">Watchlist & Daily Edge Presets</h2>
+          <p class="text-[11px] text-slate-400">Keywords highlight matches & boost alert priority</p>
+        </div>
+        <button type="button" data-action="close-modal" data-target="watchlist-modal"
+          class="w-7 h-7 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs font-bold cursor-pointer">
+          ✕
+        </button>
+      </div>
+      <div id="watchlist-body" class="p-4 overflow-y-auto thin-scroll space-y-4">
+      </div>
+    </div>
+  </div>
+
+  <!-- BROWSER SHORTCUT / PWA INSTALL MODAL -->
+  <div id="install-modal" class="hidden fixed inset-0 z-40 sheet-backdrop bg-black/75 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="sheet-panel w-full max-w-lg max-h-[88vh] rounded-t-2xl sm:rounded-2xl bg-panel border border-line flex flex-col overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-line bg-panel2">
+        <div>
+          <h2 class="text-sm font-bold text-white">📲 Install / Save Browser Shortcut</h2>
+          <p class="text-[11px] text-slate-400">Launch Sentinel PH full-screen from Chrome, Edge, or Safari</p>
+        </div>
+        <button type="button" data-action="close-modal" data-target="install-modal"
+          class="w-7 h-7 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs font-bold cursor-pointer">
+          ✕
+        </button>
+      </div>
+      <div id="install-body" class="p-4 overflow-y-auto thin-scroll space-y-3 text-xs text-slate-300 leading-relaxed">
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-banner" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-3.5 py-2 rounded-xl bg-panel2 border border-cyan/50 text-xs font-medium text-white shadow-xl max-w-[90vw] text-center">
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      let deferredInstallPrompt = null;
+      (function setupDynamicPwa() {
+        try {
+          function createIconDataUrl(size) {
+            const c = document.createElement('canvas');
+            c.width = size;
+            c.height = size;
+            const ctx = c.getContext('2d');
+            if (!ctx) return '';
+            ctx.fillStyle = '#070b14';
+            ctx.fillRect(0, 0, size, size);
+            const grad = ctx.createLinearGradient(0, 0, size, size);
+            grad.addColorStop(0, '#0e2942');
+            grad.addColorStop(1, '#091829');
+            ctx.fillStyle = grad;
+            ctx.fillRect(size * 0.08, size * 0.08, size * 0.84, size * 0.84);
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = Math.max(2, size * 0.03);
+            ctx.strokeRect(size * 0.08, size * 0.08, size * 0.84, size * 0.84);
+            ctx.fillStyle = '#22d3ee';
+            ctx.font = 'bold ' + Math.round(size * 0.34) + 'px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('SPH', size / 2, size * 0.52);
+            return c.toDataURL('image/png');
+          }
+
+          const icon192 = createIconDataUrl(192);
+          const icon512 = createIconDataUrl(512);
+          if (icon192) {
+            const appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            appleIcon.href = icon192;
+            document.head.appendChild(appleIcon);
+          }
+
+          const manifestObj = {
+            name: 'Sentinel PH — Situational & Market Terminal',
+            short_name: 'Sentinel PH',
+            description: 'Philippine BPO, Ground Alert, FX, Crypto, AI, Mobility & Force Intelligence Terminal',
+            start_url: location.href,
+            display: 'standalone',
+            background_color: '#070b14',
+            theme_color: '#070b14',
+            icons: [
+              ...(icon192 ? [{ src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' }] : []),
+              ...(icon512 ? [{ src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' }] : [])
+            ]
+          };
+
+          const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+          const manifestUrl = URL.createObjectURL(blob);
+          const linkEl = document.createElement('link');
+          linkEl.rel = 'manifest';
+          linkEl.href = manifestUrl;
+          document.head.appendChild(linkEl);
+        } catch (err) {
+        }
+
+        window.addEventListener('beforeinstallprompt', function (e) {
+          e.preventDefault();
+          deferredInstallPrompt = e;
+          const lbl = document.getElementById('install-btn-label');
+          if (lbl) lbl.textContent = 'Install App';
+        });
+
+        window.addEventListener('appinstalled', function () {
+          deferredInstallPrompt = null;
+          const lbl = document.getElementById('install-btn-label');
+          if (lbl) lbl.textContent = 'Installed';
+        });
+      })();
+
+      const STORAGE_KEY = 'sentinel_ph_v9_state';
+      const AUTO_REFRESH_MS = 15 * 60 * 1000;
+
+      const WEATHER_LOCATIONS = [
+        { id: 'angeles', label: 'Angeles/Clark', lat: 15.145, lon: 120.5887 },
+        { id: 'sanfernando', label: 'San Fernando', lat: 15.0285, lon: 120.6898 },
+        { id: 'manila', label: 'Metro Manila', lat: 14.5995, lon: 120.9842 },
+        { id: 'subic', label: 'Subic Bay', lat: 14.8286, lon: 120.2738 },
+        { id: 'baguio', label: 'Baguio', lat: 16.4023, lon: 120.596 }
+      ];
+
+      const PRESET_PACKS = [
+        {
+          id: 'shift-outage',
+          label: '⚡ Clark/Angeles Shift & Outage',
+          keywords: ['Clark', 'Angeles', 'San Fernando', 'NLEX', 'SCTEX', 'AEC', 'PELCO', 'NGCP', 'Converge', 'flood', 'outage', 'blackout', 'strike', 'PAGASA', 'typhoon']
+        },
+        {
+          id: 'bpo-career',
+          label: '💼 BPO & AI Career Shield',
+          keywords: ['BPO', 'IT-BPM', 'IBPAP', 'PEZA', 'TaskUs', 'Concentrix', 'Teleperformance', 'Cloudstaff', 'outsourcing', 'AI', 'automation', 'labor', 'DOLE']
+        },
+        {
+          id: 'peso-macro',
+          label: '🇵🇭 Peso, BSP & Fuel',
+          keywords: ['peso', 'BSP', 'inflation', 'interest rate', 'rollback', 'oil price', 'diesel', 'gasoline', 'GCash', 'Maya', 'remittance', 'PSEi']
+        },
+        {
+          id: 'builder-darkhorse',
+          label: '🛠️ Solo Builder & Darkhorses',
+          keywords: ['open-source', 'open weight', 'agent', 'startup', 'seed', 'Cloudflare', 'API', 'darkhorse', 'venture', 'founder']
+        }
+      ];
+
+      const RSS_FEEDS = [
+        { url: 'https://www.rappler.com/feed/', domain: 'ph_national', source: 'Rappler', tier: 'National & Defense Wire' },
+        { url: 'https://feeds.feedburner.com/gmanews/news', domain: 'ph_national', source: 'GMA News', tier: 'National Media' },
+        { url: 'https://www.philstar.com/rss/headlines', domain: 'ph_national', source: 'Philstar Headlines', tier: 'National Media' },
+        { url: 'https://www.philstar.com/rss/nation', domain: 'ph_national', source: 'Philstar Nation', tier: 'National Media' },
+        { url: 'https://www.pna.gov.ph/rss', domain: 'ph_national', source: 'Philippine News Agency', tier: 'Official Gov/Agency' },
+        { url: 'https://www.bworldonline.com/feed/', domain: 'bpo_macro', source: 'BusinessWorld', tier: 'Finance & Tech Wire' },
+        { url: 'https://businessmirror.com.ph/feed/', domain: 'bpo_macro', source: 'BusinessMirror', tier: 'Finance & Tech Wire' },
+        { url: 'https://www.philstar.com/rss/business', domain: 'bpo_macro', source: 'Philstar Business', tier: 'Finance & Tech Wire' },
+        { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', domain: 'billionaires_crypto', source: 'CoinDesk', tier: 'Finance & Tech Wire' },
+        { url: 'https://cointelegraph.com/rss', domain: 'billionaires_crypto', source: 'Cointelegraph', tier: 'Finance & Tech Wire' },
+        { url: 'https://www.forbes.com/billionaires/feed/', domain: 'billionaires_crypto', source: 'Forbes Billionaires', tier: 'Finance & Tech Wire' },
+        { url: 'https://techcrunch.com/category/artificial-intelligence/feed/', domain: 'ai_darkhorses', source: 'TechCrunch AI', tier: 'Finance & Tech Wire' },
+        { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', domain: 'ai_darkhorses', source: 'The Verge AI', tier: 'Finance & Tech Wire' },
+        { url: 'https://venturebeat.com/category/ai/feed/', domain: 'ai_darkhorses', source: 'VentureBeat AI', tier: 'Finance & Tech Wire' },
+        { url: 'https://electrek.co/feed/', domain: 'mobility', source: 'Electrek EV', tier: 'Auto & Mobility' },
+        { url: 'https://www.caranddriver.com/rss/all.xml/', domain: 'mobility', source: 'Car and Driver', tier: 'Auto & Mobility' },
+        { url: 'https://www.rideapart.com/rss/news/', domain: 'mobility', source: 'RideApart Moto', tier: 'Auto & Mobility' },
+        { url: 'https://thediplomat.com/feed/', domain: 'geopolitics', source: 'The Diplomat', tier: 'National & Defense Wire' },
+        { url: 'https://news.usni.org/feed', domain: 'geopolitics', source: 'USNI News', tier: 'National & Defense Wire' },
+        { url: 'https://www.spot.ph/rss', domain: 'offshift', source: 'Spot.ph', tier: 'Lifestyle & Travel' }
+      ];
+
+      const FALLBACK_BRIEFINGS = [
+        {
+          id: 'fb-1',
+          title: 'Central Luzon Commute & Utility Watch: NLEX / Clark Gate Traffic & Afternoon Rain',
+          summary: 'Afternoon convective showers across Angeles City, Mabalacat, and San Fernando may slow MacArthur Highway and Clark exit ramps ahead of evening/graveyard BPO shifts.',
+          details: 'Local traffic monitors and weather models indicate elevated afternoon moisture over Central Luzon. Riders and commuters traveling between Dau, Friendship Highway, San Fernando, and Clark Freeport should allow a 20–30 minute buffer during peak rain windows and check for localized road ponding or power flickers.',
+          domain: 'ph_national',
+          subtag: 'Central Luzon',
+          impactTag: 'Commute & Shift Risk',
+          source: 'Sentinel Central Luzon Desk',
+          tier: 'Official Gov/Agency',
+          link: 'https://www.pagasa.dost.gov.ph/',
+          publishedAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+          urgent12h: true,
+          whyItMatters: 'Direct impact on Central Luzon BPO shift punctuality, motorcycle/trike travel safety, and hybrid home-office power/internet stability.'
+        },
+        {
+          id: 'fb-2',
+          title: 'PNP Anti-Cybercrime Advisory: Sophisticated E-Wallet & Fake Job Offer Phishing Wave',
+          summary: 'Cybercrime units warn against spoofed SMS/messaging links impersonating digital banks, courier fees, and remote BPO/VA onboarding portals.',
+          details: 'Law enforcement advisories highlight scammers using urgent account-lock prompts and realistic recruiter templates to harvest OTPs and credentials. Never enter banking PINs or passwords through links sent in SMS, Viber, Telegram, or Messenger, and enable biometric/app locks on messaging and wallet apps.',
+          domain: 'ph_national',
+          subtag: 'Crime & Scam Alert',
+          impactTag: 'Security & Scam Alert',
+          source: 'PNP ACG Advisory Brief',
+          tier: 'Official Gov/Agency',
+          link: 'https://acg.pnp.gov.ph/',
+          publishedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+          urgent12h: true,
+          whyItMatters: 'Protects personal savings, e-wallets, and accounts against social-engineering attacks common among shift workers and online earners.'
+        },
+        {
+          id: 'fb-3',
+          title: 'Philippine IT-BPM & Clark Locators: AI-Assisted Workflows Reshape Tier-1 vs. Specialist Roles',
+          summary: 'Enterprise clients increasingly deploy automated triage for routine queries while expanding specialized customer experience, analytics, and AI QA teams in the Philippines.',
+          details: 'Industry observers note a clear split across voice, chat, and back-office operations: purely scripted repetitive tasks face automation pressure, while complex escalation handling, workflow QA, technical support, and multi-channel client operations continue to see steady demand in hubs like Clark, Metro Manila, and Cebu.',
+          domain: 'bpo_macro',
+          subtag: 'BPO & Labor',
+          impactTag: 'BPO Account Impact',
+          source: 'IBPAP / Sector Briefing',
+          tier: 'Finance & Tech Wire',
+          link: 'https://www.ibpap.org/',
+          publishedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Helps BPO professionals prioritize high-resilience skills—AI prompting/QA, analytical problem-solving, and specialized client communication.'
+        },
+        {
+          id: 'fb-4',
+          title: 'Peso, BSP Policy & Pump Prices: Tracking Remittance Value vs. Imported Costs',
+          summary: 'USD/PHP fluctuations and global crude/fuel adjustments continue to shape both dollar-denominated earnings and everyday transport/food costs in the Philippines.',
+          details: 'A softer peso boosts the PHP value of USD payouts, remittances, and offshore client billings, while raising import costs for fuel, electronics, and packaged goods. Weekly oil price adjustments also feed directly into transport and logistics expenses.',
+          domain: 'bpo_macro',
+          subtag: 'PH Economy & BSP',
+          impactTag: 'Macro & Peso Ripple',
+          source: 'BSP / Macro Watch',
+          tier: 'Finance & Tech Wire',
+          link: 'https://www.bsp.gov.ph/',
+          publishedAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Guides timing for USD conversions, emergency fund allocation, and budgeting against fuel or grocery price shifts.'
+        },
+        {
+          id: 'fb-5',
+          title: 'Billionaires & Capital Moves: Sovereign Wealth, AI Infrastructure & PH Conglomerate Capex',
+          summary: 'Global tech founders and major Philippine conglomerates continue steering capital into AI data centers, logistics, power, and urban infrastructure.',
+          details: 'Capital allocation across both global markets and Philippine conglomerates increasingly favors high-moat infrastructure: compute clusters, grid/energy resilience, port/airport logistics, and digital financial rails. Watch for secondary vendor and service opportunities tied to large regional buildouts.',
+          domain: 'billionaires_crypto',
+          subtag: 'Billionaires & Capital',
+          impactTag: 'Capital & Market Move',
+          source: 'Global Capital Wire',
+          tier: 'Finance & Tech Wire',
+          link: 'https://www.forbes.com/billionaires/',
+          publishedAt: new Date(Date.now() - 7 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Signals where institutional liquidity and multi-year corporate spending are heading next.'
+        },
+        {
+          id: 'fb-6',
+          title: 'Crypto & Liquidity Pulse: Spot Flows, Stablecoins & Macro Rate Expectations',
+          summary: 'BTC, ETH, and SOL volatility remains closely tied to US liquidity conditions, ETF inflows, and cross-border stablecoin settlement adoption.',
+          details: 'Digital asset swings continue to react sharply to macro liquidity shifts, institutional ETF flows, and regulatory clarity around stablecoins and payment rails. Risk management, position sizing, and avoiding high-leverage emotional trades remain critical during sharp moves.',
+          domain: 'billionaires_crypto',
+          subtag: 'Crypto & Liquidity',
+          impactTag: 'Crypto Volatility',
+          source: 'Digital Asset Desk',
+          tier: 'Finance & Tech Wire',
+          link: 'https://www.coindesk.com/',
+          publishedAt: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Tracks high-beta liquidity sentiment and cross-border digital settlement trends.'
+        },
+        {
+          id: 'fb-7',
+          title: 'AI & Darkhorses: Lightweight Agents, Local Tooling & Lean Niche Builders',
+          summary: 'Smaller, agile teams and open-weight/low-latency AI models are enabling fast vertical tools without heavy enterprise overhead.',
+          details: 'The fastest-moving "darkhorse" plays in software right now focus on narrow, high-friction workflows—automated intake, local language support, booking/inventory trackers, and zero-build web utilities—paired with fast iteration and low hosting costs.',
+          domain: 'ai_darkhorses',
+          subtag: 'Darkhorses & Agents',
+          impactTag: 'AI & Builder Edge',
+          source: 'Tech & Builder Radar',
+          tier: 'Finance & Tech Wire',
+          link: 'https://techcrunch.com/category/artificial-intelligence/',
+          publishedAt: new Date(Date.now() - 9 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Shows practical patterns for solo builders and lean teams shipping fast, low-cost tools.'
+        },
+        {
+          id: 'fb-8',
+          title: 'Future Mobility: Next-Gen EVs, Performance & Electric Motorcycles, and Concept Vehicles',
+          summary: 'Automakers and two-wheel manufacturers are pushing longer-range EV architectures, smart cockpit tech, lightweight e-motos, and concept designs.',
+          details: 'Across cars, motorcycles, and urban concepts, competition is heating up around charging speed, thermal efficiency, weight reduction, and software-defined features. In Southeast Asia, practical commuter range, serviceability, and charging/swapping access remain decisive factors.',
+          domain: 'mobility',
+          subtag: 'EVs, Moto & Concepts',
+          impactTag: 'Mobility & Auto Trend',
+          source: 'Mobility & Auto Wire',
+          tier: 'Auto & Mobility',
+          link: 'https://electrek.co/',
+          publishedAt: new Date(Date.now() - 11 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Useful for spotting upcoming EV/motorcycle models, pricing shifts, and commuter upgrades.'
+        },
+        {
+          id: 'fb-9',
+          title: 'West Philippine Sea & Indo-Pacific Security: Maritime Patrols, Alliances & Modernization',
+          summary: 'Regional maritime domain awareness, defense partnerships, and fleet/radar modernization remain central to Philippine and ASEAN security.',
+          details: 'Ongoing maritime patrols, multilateral exercises, and defense modernization programs highlight the strategic importance of the West Philippine Sea and Luzon Strait. Track official defense/foreign affairs releases for verified developments rather than unverified social rumors.',
+          domain: 'geopolitics',
+          subtag: 'WPS & ASEAN',
+          impactTag: 'ASEAN & Defense',
+          source: 'Indo-Pacific Security Brief',
+          tier: 'National & Defense Wire',
+          link: 'https://thediplomat.com/',
+          publishedAt: new Date(Date.now() - 13 * 3600 * 1000).toISOString(),
+          urgent12h: false,
+          whyItMatters: 'Provides calm, factual context on regional security, maritime trade lanes, and strategic alliances.'
+        }
+      ];
+
+      const DEFENSE_PROFILES = {
+        PHL: {
+          name: 'Philippines',
+          iso2: 'PH',
+          flag: '🇵🇭',
+          region: 'ASEAN',
+          subregion: 'South-Eastern Asia',
+          population: 117000000,
+          area: 300000,
+          budgetUsd: 6600000000,
+          gdpPct: '1.20',
+          highlightPH: true,
+          activeTroops: '143,000',
+          reserveTroops: '131,000',
+          landAssets: 'Light armor, IFVs/APCs, 105mm/155mm artillery, air-defense & coastal missile systems',
+          airAssets: 'FA-50PH light fighters, A-29B Super Tucano, transport aircraft, tactical & utility helicopters',
+          navalAssets: 'Guided-missile frigates, offshore patrol vessels (OPVs), corvettes, landing ships, fast attack craft',
+          resources: 'Nickel, copper, chromite, gold, fertile agricultural basins, strategic Luzon Strait & archipelagic sea lanes',
+          modernizationNote: 'Re-Horizon 3 modernization prioritizes maritime domain awareness, air/missile defense, multi-role fighters, and territorial defense.'
+        },
+        CHN: {
+          name: 'China',
+          iso2: 'CN',
+          flag: '🇨🇳',
+          region: 'Indo-Pacific',
+          subregion: 'Eastern Asia',
+          population: 1409000000,
+          area: 9596961,
+          budgetUsd: 314000000000,
+          gdpPct: '1.70',
+          activeTroops: '2,035,000',
+          reserveTroops: '510,000',
+          landAssets: 'Main battle tanks, thousands of AFVs, rocket artillery, integrated air & missile defense',
+          airAssets: 'J-20/J-16/J-10 fighters, bombers, AEW&C, transport fleet, attack/transport helicopters',
+          navalAssets: 'Aircraft carriers, destroyers, frigates, corvettes, nuclear/conventional submarines, amphibious fleet',
+          resources: 'Dominant rare earths processing, coal, iron ore, industrial manufacturing base, vast domestic supply chain',
+          modernizationNote: 'Rapidly expanding blue-water navy, rocket forces, fifth-generation aviation, and joint theater capabilities.'
+        },
+        USA: {
+          name: 'United States',
+          iso2: 'US',
+          flag: '🇺🇸',
+          region: 'Americas',
+          subregion: 'Northern America',
+          population: 336000000,
+          area: 9833517,
+          budgetUsd: 954000000000,
+          gdpPct: '3.40',
+          activeTroops: '1,328,000',
+          reserveTroops: '799,500',
+          landAssets: 'M1 Abrams tanks, Bradley IFVs, HIMARS/MLRS, Patriot/THAAD air defense',
+          airAssets: 'F-35/F-22/F-15/F-16 fleets, B-2/B-1B/B-52 bombers, tankers, AWACS, large helicopter fleet',
+          navalAssets: '11 nuclear aircraft carriers, cruisers, destroyers, littoral combat ships, SSN/SSBN/SSGN submarines',
+          resources: 'Major oil & natural gas producer, vast agricultural output, deep capital markets & defense tech R&D',
+          modernizationNote: 'Global power projection with Indo-Pacific force posture, long-range strike, and unmanned/autonomous systems.'
+        },
+        JPN: {
+          name: 'Japan',
+          iso2: 'JP',
+          flag: '🇯🇵',
+          region: 'Indo-Pacific',
+          subregion: 'Eastern Asia',
+          population: 124000000,
+          area: 377975,
+          budgetUsd: 55300000000,
+          gdpPct: '1.40',
+          activeTroops: '247,150',
+          reserveTroops: '56,000',
+          landAssets: 'Type 10/Type 90 tanks, Type 16 maneuver combat vehicles, artillery & surface-to-air systems',
+          airAssets: 'F-15J, F-2, F-35A/B fighters, E-767/E-2D AEW, maritime patrol P-1s, helicopters',
+          navalAssets: 'Helicopter destroyers (being converted for F-35B), Aegis destroyers, frigates, modern diesel-electric submarines',
+          resources: 'Advanced semiconductor/optics/materials tech, high industrial capacity; relies on imports for energy & raw materials',
+          modernizationNote: 'Expanding counterstrike/standoff capabilities, defense spending ramp-up, and Aegis Ashore/sea-based missile defense.'
+        },
+        TWN: {
+          name: 'Taiwan',
+          iso2: 'TW',
+          flag: '🇹🇼',
+          region: 'Indo-Pacific',
+          subregion: 'Eastern Asia',
+          population: 23900000,
+          area: 36193,
+          budgetUsd: 19000000000,
+          gdpPct: '2.50',
+          activeTroops: '163,000',
+          reserveTroops: '1,657,000',
+          landAssets: 'CM11/M60A3/M1A2T tanks, artillery, anti-ship & short/medium-range air defense batteries',
+          airAssets: 'F-16V, Mirage 2000, IDF fighters, trainer/attack aircraft, transport & attack helicopters',
+          navalAssets: 'Frigates, corvettes, fast missile attack craft, amphibious vessels, submarines',
+          resources: 'World-leading advanced semiconductor foundry ecosystem; high import dependence for energy & food',
+          modernizationNote: 'Focuses on asymmetric coastal/air denial, mobile missile launchers, reserve reform, and F-16V upgrades.'
+        },
+        VNM: {
+          name: 'Vietnam',
+          iso2: 'VN',
+          flag: '🇻🇳',
+          region: 'ASEAN',
+          subregion: 'South-Eastern Asia',
+          population: 100300000,
+          area: 331212,
+          budgetUsd: 7200000000,
+          gdpPct: '1.60',
+          activeTroops: '482,000',
+          reserveTroops: '5,000,000',
+          landAssets: 'MBTs, armored vehicles, towed/self-propelled artillery, coastal & air-defense missiles',
+          airAssets: 'Su-30MK2/Su-27 fighters, multi-role & transport aircraft, helicopters',
+          navalAssets: 'Gepard frigates, corvettes, missile patrol boats, Kilo-class submarines',
+          resources: 'Offshore oil/gas, bauxite/rare earth deposits, strategic South China Sea coastline',
+          modernizationNote: 'Emphasizes coastal defense, submarine/surface deterrence, and diversified international defense ties.'
+        },
+        IDN: {
+          name: 'Indonesia',
+          iso2: 'ID',
+          flag: '🇮🇩',
+          region: 'ASEAN',
+          subregion: 'South-Eastern Asia',
+          population: 281000000,
+          area: 1904569,
+          budgetUsd: 9500000000,
+          gdpPct: '0.70',
+          activeTroops: '404,500',
+          reserveTroops: '400,000',
+          landAssets: 'Leopard 2 tanks, medium tanks/APCs, artillery & air-defense units',
+          airAssets: 'F-16, Su-27/30 fighters, transport/patrol aircraft, helicopters',
+          navalAssets: 'Frigates, corvettes, patrol vessels, amphibious ships, submarines',
+          resources: 'World’s top nickel producer, palm oil, coal, LNG/oil, archipelagic maritime chokepoints',
+          modernizationNote: 'Pursuing multi-source fighter, frigate, and submarine acquisitions to guard sprawling archipelago waters.'
+        },
+        KOR: {
+          name: 'South Korea',
+          iso2: 'KR',
+          flag: '🇰🇷',
+          region: 'Indo-Pacific',
+          subregion: 'Eastern Asia',
+          population: 51700000,
+          area: 100210,
+          budgetUsd: 47900000000,
+          gdpPct: '2.70',
+          activeTroops: '511,000',
+          reserveTroops: '3,100,000',
+          landAssets: 'K2 Black Panther tanks, K21 IFVs, K9 Thunder self-propelled howitzers, layered air/missile defense',
+          airAssets: 'F-35A, F-15K, KF-16, FA-50/KF-21 fighters, surveillance & transport aircraft, helicopters',
+          navalAssets: 'Aegis destroyers, frigates, corvettes, KSS-III AIP submarines, amphibious ships',
+          resources: 'High-tech shipbuilding, defense manufacturing, semiconductors & autos; import-reliant for fossil fuels',
+          modernizationNote: 'Strong domestic defense industry (K9, K2, FA-50, KF-21) alongside multi-tier missile defense.'
+        },
+        AUS: {
+          name: 'Australia',
+          iso2: 'AU',
+          flag: '🇦🇺',
+          region: 'Oceania',
+          subregion: 'Australia and New Zealand',
+          population: 26800000,
+          area: 7692024,
+          budgetUsd: 36400000000,
+          gdpPct: '2.00',
+          activeTroops: '57,000',
+          reserveTroops: '31,000',
+          landAssets: 'M1A1/M1A2 Abrams tanks, Boxer/ASLAV armored vehicles, HIMARS & artillery',
+          airAssets: 'F-35A, F/A-18F Super Hornet, EA-18G Growler, P-8A Poseidon maritime patrol, C-17/C-130J',
+          navalAssets: 'Hobart-class destroyers, Anzac/Hunter-class frigates, Collins-class submarines, amphibious ships',
+          resources: 'Iron ore, lithium, critical minerals, LNG, coal, vast continent & Indian/Pacific maritime approaches',
+          modernizationNote: 'AUKUS nuclear-powered submarine program, long-range strike, and northern base upgrades.'
+        },
+        SGP: {
+          name: 'Singapore',
+          iso2: 'SG',
+          flag: '🇸🇬',
+          region: 'ASEAN',
+          subregion: 'South-Eastern Asia',
+          population: 6000000,
+          area: 733,
+          budgetUsd: 15100000000,
+          gdpPct: '2.90',
+          activeTroops: '72,500',
+          reserveTroops: '252,500',
+          landAssets: 'Leopard 2SG tanks, Hunter AFVs, Bionix IFVs, HIMARS, ASTER/SPYDER air defense',
+          airAssets: 'F-15SG, F-16C/D+ fighters, G550 AEW, A330 MRTT tankers, transport & attack helicopters',
+          navalAssets: 'Formidable-class stealth frigates, Victory-class corvettes, patrol vessels, submarines',
+          resources: 'Straddles Strait of Malacca maritime chokepoint, global financial/logistics hub; limited land/natural resources',
+          modernizationNote: 'High-tech networked force, unmanned/autonomous systems, and precision air/naval defense.'
+        },
+        MYS: {
+          name: 'Malaysia',
+          iso2: 'MY',
+          flag: '🇲🇾',
+          region: 'ASEAN',
+          subregion: 'South-Eastern Asia',
+          population: 34500000,
+          area: 330803,
+          budgetUsd: 4600000000,
+          gdpPct: '1.10',
+          activeTroops: '113,000',
+          reserveTroops: '51,600',
+          landAssets: 'PT-91M tanks, armored vehicles, artillery & short-range air defense',
+          airAssets: 'Su-30MKM, F/A-18D fighters, maritime patrol, transport & utility helicopters',
+          navalAssets: 'Frigates, corvettes, offshore patrol vessels, Scorpene submarines',
+          resources: 'Petroleum, LNG, palm oil, tin/minerals, South China Sea & Malacca Strait access',
+          modernizationNote: 'Littoral mission ships, light combat aircraft, and maritime surveillance upgrades.'
+        },
+        THA: {
+          name: 'Thailand',
+          iso2: 'TH',
+          flag: '🇹🇭',
+          region: 'ASEAN',
+          subregion: 'South-Eastern Asia',
+          population: 71800000,
+          area: 513120,
+          budgetUsd: 5700000000,
+          gdpPct: '1.10',
+          activeTroops: '360,850',
+          reserveTroops: '200,000',
+          landAssets: 'VT-4/M60A3 tanks, Stryker/VN1 armored vehicles, artillery & air defense',
+          airAssets: 'Gripen, F-16A/B fighters, transport & maritime patrol aircraft, helicopters',
+          navalAssets: 'Frigates, corvettes, offshore patrol vessels, amphibious assault ship',
+          resources: 'Agricultural powerhouse, rubber, natural gas in Gulf of Thailand, mainland SEA logistics hub',
+          modernizationNote: 'Balanced ground/air/naval posture with focus on disaster response, border security, and fleet renewal.'
+        },
+        IND: {
+          name: 'India',
+          iso2: 'IN',
+          flag: '🇮🇳',
+          region: 'Indo-Pacific',
+          subregion: 'Southern Asia',
+          population: 1438000000,
+          area: 3287263,
+          budgetUsd: 86100000000,
+          gdpPct: '2.40',
+          activeTroops: '1,455,550',
+          reserveTroops: '1,155,000',
+          landAssets: 'T-90/T-72/Arjun tanks, IFVs, artillery, BrahMos & air/missile defense systems',
+          airAssets: 'Rafale, Su-30MKI, Tejas, MiG-29 fighters, AEW&C, transport & attack helicopters',
+          navalAssets: 'Aircraft carriers (INS Vikrant/Vikramaditya), destroyers, frigates, SSN/SSBN/conventional submarines',
+          resources: 'Coal, iron ore, bauxite, large skilled workforce, Indian Ocean sea-lane centrality',
+          modernizationNote: 'Indigenous defense push ("Atmanirbhar"), carrier/submarine expansion, and high-altitude border readiness.'
+        }
+      };
+
+      const OFFSHIFT_CURATED = [
+        {
+          id: 'os-1',
+          category: 'food',
+          tag: 'Kapampangan & Late-Night Eats',
+          title: 'Angeles & Clark Food Crawl: Sisig Classics, Friendship K-BBQ & Post-Shift Spots',
+          driveTime: '10–20 mins around Angeles / Clark',
+          budget: '₱250 – ₱850 / pax',
+          shiftTip: 'Check operating hours before graveyard/post-shift runs; weeknights avoid weekend family rush.',
+          summary: 'From heritage Kapampangan dishes in Angeles/San Fernando to late-night comfort food and trending spots near Clark & Friendship.',
+          details: 'Pampanga’s culinary scene spans traditional sisig, tocino, and heirloom Kapampangan cooking in Angeles and San Fernando alongside casual cafes, Korean/Japanese spots along Friendship Highway, and late-night hangouts near Clark hubs. Always verify live hours and queue times on maps/social pages before heading out.',
+          link: 'https://www.spot.ph/eatdrink',
+          urgent12h: false
+        },
+        {
+          id: 'os-2',
+          category: 'roadtrip',
+          tag: '1–2 Hr Road Trip',
+          title: 'Mt. Pinatubo Crater, Puning Hot Springs & Porac/Tarlac Day Escapes',
+          driveTime: '45 mins – 1.5 hrs via SCTEX / NLEX',
+          budget: '₱1,800 – ₱3,800 / pax (day tour)',
+          shiftTip: 'Start early morning for cooler skies and clear crater views; check local LGU/tourism advisories first.',
+          summary: 'Quick nature resets from Central Luzon featuring 4x4 crater treks, volcanic hot springs, hills, and eco-lodges.',
+          details: 'Living in Pampanga puts you minutes away from high-contrast day trips: 4x4 trail rides and crater views in Capas/Botolan, hot-spring mud/sand relaxation, or quiet mountain/forest trails. Confirm tour slots, road conditions, and weather beforehand.',
+          link: 'https://www.spot.ph/things-to-do',
+          urgent12h: false
+        },
+        {
+          id: 'os-3',
+          category: 'roadtrip',
+          tag: 'Coastal & Heritage Drive',
+          title: 'Subic Bay, Zambales Coves & Bataan Heritage Getaways',
+          driveTime: '1.5 – 2.5 hrs via SCTEX / Roman Hwy',
+          budget: '₱2,200 – ₱5,500 / pax',
+          shiftTip: 'Avoid Sunday evening return traffic bottlenecks by heading back early or staying an extra night.',
+          summary: 'Coastal breezes, boardwalk dining in Subic, surf/cove towns in Zambales, and heritage stays in Bataan.',
+          details: 'Ideal for a 1-night off-shift recharge: Subic Freeport offers easy waterfront dining and resort stays, Zambales brings laid-back beaches and camping/surfing spots, and Bataan combines coastal views with historic landmarks.',
+          link: 'https://www.rappler.com/life-and-style/travel/',
+          urgent12h: false
+        },
+        {
+          id: 'os-4',
+          category: 'flight_deal',
+          tag: 'CRK & PH Travel Trend',
+          title: 'Clark International Airport (CRK) Routes, Seat Sales & Island Escapes',
+          driveTime: 'Direct departure from CRK (Angeles/Mabalacat)',
+          budget: 'Varies by promo / season',
+          shiftTip: 'Book off-peak midweek flights and factor in Clark airport check-in buffer time.',
+          summary: 'Track domestic and regional flight promos out of Clark (CRK) plus trending PH festivals and island destinations.',
+          details: 'Flying out of Clark International Airport saves the long Metro Manila drive for Central Luzon residents. Keep an eye on airline seat sales, travel advisories, and seasonal peak dates (holidays, long weekends, and major festivals) before locking in leave.',
+          link: 'https://www.philstar.com/lifestyle/travel-and-tourism',
+          urgent12h: false
+        }
+      ];
+
+      let state = loadState();
+      let telemetryDrawerOpen = null;
+      let militaryCompareIso3 = 'CHN';
+      let militaryRegionFilter = 'ALL';
+      let militarySearchQuery = '';
+      let offshiftFilter = 'all';
+      let isSyncing = false;
+
+      function defaultState() {
+        return {
+          lastSync: null,
+          activeNav: 'radar',
+          activeDomain: 'all',
+          sourceTierFilter: 'all',
+          preShiftOnly: false,
+          searchQuery: '',
+          weatherLocId: 'angeles',
+          weatherData: {
+            angeles: {
+              temp: 31,
+              pop: 35,
+              wind: 12,
+              hourly: [
+                { time: '12:00', temp: 31, pop: 30 },
+                { time: '14:00', temp: 32, pop: 45 },
+                { time: '16:00', temp: 30, pop: 50 },
+                { time: '18:00', temp: 28, pop: 35 },
+                { time: '20:00', temp: 27, pop: 20 },
+                { time: '22:00', temp: 26, pop: 15 }
+              ]
+            }
+          },
+          fxData: {
+            base: 'USD',
+            updatedAt: null,
+            rates: { PHP: 63.85, AUD: 0.655, GBP: 0.79, EUR: 0.925, SGD: 1.345, JPY: 154.5 },
+            prevPhpRates: { USD: 63.85, AUD: 41.8, GBP: 50.4, EUR: 59.0, SGD: 47.45, JPY: 0.413 }
+          },
+          cryptoData: {
+            updatedAt: null,
+            coins: {
+              bitcoin: { symbol: 'BTC', price: 94250, change24h: 1.8 },
+              ethereum: { symbol: 'ETH', price: 3240, change24h: -0.6 },
+              solana: { symbol: 'SOL', price: 218, change24h: 3.4 }
+            }
+          },
+          briefings: FALLBACK_BRIEFINGS.slice(),
+          savedIds: ['fb-1', 'fb-3'],
+          watchlist: ['Clark', 'Angeles', 'NLEX', 'BPO', 'AI', 'GCash'],
+          countries: [],
+          worldBank: {
+            budgetUsd: {},
+            gdpPct: {},
+            personnel: {}
+          }
+        };
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return defaultState();
+          const parsed = JSON.parse(raw);
+          const base = defaultState();
+          return {
+            ...base,
+            ...parsed,
+            weatherData: { ...base.weatherData, ...(parsed.weatherData || {}) },
+            fxData: { ...base.fxData, ...(parsed.fxData || {}) },
+            cryptoData: {
+              ...base.cryptoData,
+              ...(parsed.cryptoData || {}),
+              coins: { ...base.cryptoData.coins, ...((parsed.cryptoData && parsed.cryptoData.coins) || {}) }
+            },
+            briefings: Array.isArray(parsed.briefings) && parsed.briefings.length ? parsed.briefings : base.briefings,
+            savedIds: Array.isArray(parsed.savedIds) ? parsed.savedIds : base.savedIds,
+            watchlist: Array.isArray(parsed.watchlist) ? parsed.watchlist : base.watchlist,
+            countries: Array.isArray(parsed.countries) ? parsed.countries : [],
+            worldBank: { ...base.worldBank, ...(parsed.worldBank || {}) }
+          };
+        } catch (err) {
+          return defaultState();
+        }
+      }
+
+      function saveState() {
+        try {
+          const toStore = {
+            ...state,
+            briefings: state.briefings.slice(0, 140)
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+        } catch (err) {
+        }
+      }
+
+      function sanitizeText(str) {
+        if (typeof str !== 'string') return '';
+        const div = document.createElement('div');
+        div.innerHTML = str;
+        return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function sanitizeUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        const trimmed = url.trim();
+        try {
+          const parsed = new URL(trimmed);
+          if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+            return parsed.href;
+          }
+          return '';
+        } catch (err) {
+          return '';
+        }
+      }
+
+      function highlightMatches(text, extraTerms) {
+        const safe = escapeHtml(text);
+        const terms = [
+          ...(state.watchlist || []),
+          ...(state.searchQuery ? state.searchQuery.trim().split(/\s+/) : []),
+          ...(extraTerms || [])
+        ]
+          .map(t => String(t || '').trim())
+          .filter(t => t.length >= 2);
+
+        if (!terms.length) return safe;
+        const escapedTerms = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const regex = new RegExp('\\b(' + escapedTerms.join('|') + ')', 'gi');
+        return safe.replace(regex, '<mark class="kw-hit">$1</mark>');
+      }
+
+      function timeAgo(isoStr) {
+        if (!isoStr) return 'Recently';
+        const ts = new Date(isoStr).getTime();
+        if (Number.isNaN(ts)) return 'Recently';
+        const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+        if (diffSec < 60) return diffSec + 's ago';
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return diffMin + 'm ago';
+        const diffHr = Math.floor(diffMin / 60);
+        if (diffHr < 24) return diffHr + 'h ago';
+        return Math.floor(diffHr / 24) + 'd ago';
+      }
+
+      function showToast(msg) {
+        const el = document.getElementById('toast-banner');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => el.classList.add('hidden'), 2400);
+      }
+
+      function classifyItem(rawTitle, rawDesc, feedDomain, feedSource, feedTier) {
+        const title = sanitizeText(rawTitle);
+        const desc = sanitizeText(rawDesc);
+        const blob = (title + ' ' + desc).toLowerCase();
+
+        let domain = feedDomain || 'ph_national';
+        if (/\b(bitcoin|btc|ethereum|eth|solana|sol|crypto|blockchain|billionaire|net worth|musk|bezos|zuckerberg|huang|ramon ang|sy|razon)\b/.test(blob)) {
+          domain = 'billionaires_crypto';
+        } else if (/\b(artificial intelligence|llm|openai|anthropic|gemini|claude|agent|startup|darkhorse|robotics|semiconductor|nvidia)\b/.test(blob)) {
+          domain = 'ai_darkhorses';
+        } else if (/\b(electric vehicle|\bev\b|byd|tesla|motorcycle|e-moto|concept car|evtol|autonomous|charging)\b/.test(blob)) {
+          domain = 'mobility';
+        } else if (/\b(west philippine sea|\bwps\b|asean|afp|pentagon|missile|naval|submarines?|geopolitics|diplomacy|china.*philippines|philippines.*china)\b/.test(blob)) {
+          domain = 'geopolitics';
+        } else if (/\b(\bbpo\b|it-bpm|peza|bsp|inflation|interest rate|peso|remittance|psei|labor|dole|outsourcing)\b/.test(blob)) {
+          domain = 'bpo_macro';
+        } else if (/\b(clark|angeles|san fernando|pampanga|nlex|sctex|manila|flood|typhoon|pagasa|ndrrmc|strike|pnp|crime|scam|outage)\b/.test(blob)) {
+          domain = 'ph_national';
+        }
+
+        const urgent12h = /\b(flood|typhoon|signal no\.?|pagasa|ndrrmc|strike|road closure|traffic|outage|blackout|earthquake|alert|advisory|urgent|crime|scam)\b/.test(blob);
+
+        let subtag = 'National Pulse';
+        if (/\b(clark|angeles|san fernando|pampanga|nlex|sctex|dau)\b/.test(blob)) subtag = 'Central Luzon';
+        else if (/\b(manila|ncr|edsa|makati|bgc|quezon city)\b/.test(blob)) subtag = 'Metro Manila';
+        else if (/\b(pnp|nbi|crime|scam|cybercrime|robbery|murder|arrest)\b/.test(blob)) subtag = 'Crime & Public';
+        else if (/\b(\bbpo\b|it-bpm|peza|dole|labor)\b/.test(blob)) subtag = 'BPO & Labor';
+        else if (/\b(bsp|peso|inflation|rate|psei|oil|fuel)\b/.test(blob)) subtag = 'Macro & FX';
+        else if (/\b(billionaire|forbes|wealth|tycoon)\b/.test(blob)) subtag = 'Billionaires';
+        else if (/\b(btc|bitcoin|eth|ethereum|crypto|token)\b/.test(blob)) subtag = 'Crypto';
+        else if (/\b(ai|model|agent|startup|darkhorse)\b/.test(blob)) subtag = 'AI & Darkhorses';
+        else if (/\b(ev|electric|motorcycle|moto|concept)\b/.test(blob)) subtag = 'EVs & Moto';
+        else if (/\b(west philippine sea|wps|asean|defense|afp|military)\b/.test(blob)) subtag = 'WPS & Defense';
+
+        let impactTag = 'Situation Update';
+        let whyItMatters = 'Keeps your situational awareness current across Philippine and global developments.';
+
+        if (domain === 'ph_national') {
+          if (urgent12h) {
+            impactTag = 'Commute & Ground Alert';
+            whyItMatters = 'May affect travel times, local routes, utilities, or immediate personal safety in the Philippines.';
+          } else {
+            impactTag = 'PH National Pulse';
+            whyItMatters = 'Highlights domestic policy, public safety, or social trends affecting everyday life in the PH.';
+          }
+        } else if (domain === 'bpo_macro') {
+          impactTag = 'BPO & Macro Ripple';
+          whyItMatters = 'Can influence BPO hiring/client demand, peso purchasing power, interest rates, or living costs.';
+        } else if (domain === 'billionaires_crypto') {
+          impactTag = 'Capital & Market Move';
+          whyItMatters = 'Tracks high-impact wealth/corporate moves and crypto liquidity shifts driving risk sentiment.';
+        } else if (domain === 'ai_darkhorses') {
+          impactTag = 'AI & Builder Edge';
+          whyItMatters = 'Useful for spotting new AI capabilities, workflow shifts, and emerging challenger startups.';
+        } else if (domain === 'mobility') {
+          impactTag = 'Mobility & Auto Trend';
+          whyItMatters = 'Covers EV, motorcycle, and vehicle concept innovations relevant to future commuting and tech.';
+        } else if (domain === 'geopolitics') {
+          impactTag = 'ASEAN & Defense';
+          whyItMatters = 'Monitors regional security, maritime tension, and diplomatic shifts impacting Southeast Asia.';
+        } else if (domain === 'offshift') {
+          impactTag = 'Off-Shift & Escape';
+          whyItMatters = 'Idea for dining, road trips, or breaks outside shift hours.';
+        }
+
+        return {
+          domain,
+          subtag,
+          impactTag,
+          whyItMatters,
+          urgent12h,
+          tier: feedTier || 'National Media'
+        };
+      }
+
+      async function fetchWeather() {
+        const loc = WEATHER_LOCATIONS.find(w => w.id === state.weatherLocId) || WEATHER_LOCATIONS[0];
+        try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,precipitation_probability,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability&forecast_hours=12&timezone=Asia%2FManila`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Weather HTTP error');
+          const data = await res.json();
+          const cur = data.current || {};
+          const hourly = data.hourly || {};
+          const nextHours = (hourly.time || []).slice(0, 6).map((t, idx) => ({
+            time: String(t).slice(11, 16),
+            temp: Math.round((hourly.temperature_2m || [])[idx] ?? cur.temperature_2m ?? 30),
+            pop: Math.round((hourly.precipitation_probability || [])[idx] ?? cur.precipitation_probability ?? 0)
+          }));
+
+          state.weatherData[loc.id] = {
+            temp: Math.round(cur.temperature_2m ?? 31),
+            pop: Math.round(cur.precipitation_probability ?? 20),
+            wind: Math.round(cur.wind_speed_10m ?? 12),
+            code: cur.weather_code ?? 0,
+            hourly: nextHours,
+            updatedAt: new Date().toISOString()
+          };
+          saveState();
+        } catch (err) {
+        }
+      }
+
+      async function fetchFxRates() {
+        try {
+          const res = await fetch('https://open.er-api.com/v6/latest/USD');
+          if (!res.ok) throw new Error('FX error');
+          const data = await res.json();
+          const rates = data.rates || {};
+          const phpPerUsd = Number(rates.PHP) || state.fxData.rates.PHP || 63.85;
+
+          const currentPhpPairs = {
+            USD: phpPerUsd,
+            AUD: rates.AUD ? phpPerUsd / rates.AUD : state.fxData.prevPhpRates.AUD,
+            GBP: rates.GBP ? phpPerUsd / rates.GBP : state.fxData.prevPhpRates.GBP,
+            EUR: rates.EUR ? phpPerUsd / rates.EUR : state.fxData.prevPhpRates.EUR,
+            SGD: rates.SGD ? phpPerUsd / rates.SGD : state.fxData.prevPhpRates.SGD,
+            JPY: rates.JPY ? phpPerUsd / rates.JPY : state.fxData.prevPhpRates.JPY
+          };
+
+          state.fxData = {
+            base: 'USD',
+            updatedAt: new Date().toISOString(),
+            rates: {
+              PHP: phpPerUsd,
+              AUD: rates.AUD || 0.65,
+              GBP: rates.GBP || 0.79,
+              EUR: rates.EUR || 0.92,
+              SGD: rates.SGD || 1.34,
+              JPY: rates.JPY || 154
+            },
+            prevPhpRates: currentPhpPairs
+          };
+          saveState();
+        } catch (err) {
+        }
+      }
+
+      async function fetchCryptoRates() {
+        try {
+          const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true');
+          if (!res.ok) throw new Error('Crypto error');
+          const data = await res.json();
+          state.cryptoData = {
+            updatedAt: new Date().toISOString(),
+            coins: {
+              bitcoin: {
+                symbol: 'BTC',
+                price: Number(data.bitcoin && data.bitcoin.usd) || state.cryptoData.coins.bitcoin.price,
+                change24h: Number(data.bitcoin && data.bitcoin.usd_24h_change) || 0
+              },
+              ethereum: {
+                symbol: 'ETH',
+                price: Number(data.ethereum && data.ethereum.usd) || state.cryptoData.coins.ethereum.price,
+                change24h: Number(data.ethereum && data.ethereum.usd_24h_change) || 0
+              },
+              solana: {
+                symbol: 'SOL',
+                price: Number(data.solana && data.solana.usd) || state.cryptoData.coins.solana.price,
+                change24h: Number(data.solana && data.solana.usd_24h_change) || 0
+              }
+            }
+          };
+          saveState();
+        } catch (err) {
+        }
+      }
+
+      async function fetchSingleFeed(feed) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7000);
+        try {
+          const apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url);
+          const res = await fetch(apiUrl, { signal: controller.signal });
+          if (!res.ok) throw new Error('Feed response not ok');
+          const json = await res.json();
+          if (json.status !== 'ok' || !Array.isArray(json.items)) throw new Error('Invalid feed payload');
+
+          return json.items.slice(0, 6).map((item, idx) => {
+            const title = sanitizeText(item.title || '');
+            const cleanDesc = sanitizeText(item.description || item.content || '');
+            const link = sanitizeUrl(item.link || feed.url);
+            const pubDate = item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString();
+            const meta = classifyItem(title, cleanDesc, feed.domain, feed.source, feed.tier);
+            const idBase = (feed.source + '-' + title + '-' + idx).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+
+            return {
+              id: idBase || ('item-' + Date.now() + '-' + idx),
+              title,
+              summary: cleanDesc.slice(0, 210) || meta.whyItMatters,
+              details: cleanDesc || title,
+              domain: meta.domain,
+              subtag: meta.subtag,
+              impactTag: meta.impactTag,
+              source: feed.source,
+              tier: meta.tier,
+              link,
+              publishedAt: pubDate,
+              urgent12h: meta.urgent12h,
+              whyItMatters: meta.whyItMatters
+            };
+          }).filter(it => it.title.length > 6);
+        } catch (err) {
+          return [];
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      async function fetchRssFeeds() {
+        const results = await Promise.allSettled(RSS_FEEDS.map(f => fetchSingleFeed(f)));
+        const freshItems = [];
+        for (const r of results) {
+          if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+            freshItems.push(...r.value);
+          }
+        }
+
+        if (freshItems.length > 0) {
+          const seen = new Set();
+          const merged = [...freshItems, ...state.briefings].filter(item => {
+            const key = (item.title || '').toLowerCase().slice(0, 75);
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          merged.sort((a, b) => {
+            const aUrgent = a.urgent12h ? 1 : 0;
+            const bUrgent = b.urgent12h ? 1 : 0;
+            if (aUrgent !== bUrgent) return bUrgent - aUrgent;
+            return new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime();
+          });
+
+          state.briefings = merged.slice(0, 140);
+          saveState();
+        }
+      }
+
+      async function fetchAllNationsMilitaryData() {
+        if (state.countries.length >= 180 && Object.keys(state.worldBank.budgetUsd || {}).length > 50) {
+          return;
+        }
+        try {
+          const [countriesRes, budgetRes, gdpRes, persRes] = await Promise.all([
+            fetch('https://restcountries.com/v3.1/all?fields=name,cca3,cca2,population,area,region,subregion'),
+            fetch('https://api.worldbank.org/v2/country/all/indicator/MS.MIL.XPND.CD?format=json&per_page=300&MRV=1'),
+            fetch('https://api.worldbank.org/v2/country/all/indicator/MS.MIL.XPND.GD.ZS?format=json&per_page=300&MRV=1'),
+            fetch('https://api.worldbank.org/v2/country/all/indicator/MS.MIL.TOTL.P1?format=json&per_page=300&MRV=1')
+          ]);
+
+          if (countriesRes.ok) {
+            const cJson = await countriesRes.json();
+            if (Array.isArray(cJson)) {
+              state.countries = cJson
+                .filter(c => c.cca3 && c.name && c.name.common)
+                .map(c => ({
+                  cca3: c.cca3,
+                  cca2: c.cca2 || '',
+                  name: c.name.common,
+                  population: Number(c.population) || 0,
+                  area: Number(c.area) || 0,
+                  region: c.region || 'Other',
+                  subregion: c.subregion || '',
+                  flagEmoji: (c.cca2 && c.cca2.length === 2)
+                    ? String.fromCodePoint(...c.cca2.toUpperCase().split('').map(ch => 127397 + ch.charCodeAt(0)))
+                    : '🏳️'
+                }))
+                .sort((a, b) => {
+                  if (a.cca3 === 'PHL') return -1;
+                  if (b.cca3 === 'PHL') return 1;
+                  return b.population - a.population;
+                });
+            }
+          }
+
+          const parseWb = (resJson) => {
+            const map = {};
+            if (Array.isArray(resJson) && Array.isArray(resJson[1])) {
+              for (const row of resJson[1]) {
+                const code = row.countryiso3code || (row.country && row.country.id);
+                if (code && row.value !== null && row.value !== undefined) {
+                  map[code] = { value: Number(row.value), year: row.date || '' };
+                }
+              }
+            }
+            return map;
+          };
+
+          if (budgetRes.ok) state.worldBank.budgetUsd = parseWb(await budgetRes.json());
+          if (gdpRes.ok) state.worldBank.gdpPct = parseWb(await gdpRes.json());
+          if (persRes.ok) state.worldBank.personnel = parseWb(await persRes.json());
+
+          saveState();
+        } catch (err) {
+        }
+      }
+
+      function getEnrichedNations() {
+        const fallbackList = Object.entries(DEFENSE_PROFILES).map(([cca3, p]) => ({
+          cca3,
+          cca2: p.iso2,
+          name: p.name,
+          population: p.population || 0,
+          area: p.area || 0,
+          region: p.region,
+          subregion: p.subregion,
+          flagEmoji: p.flag
+        }));
+
+        const baseList = state.countries.length ? state.countries : fallbackList;
+
+        return baseList.map(c => {
+          const profile = DEFENSE_PROFILES[c.cca3] || {};
+          const budgetObj = state.worldBank.budgetUsd[c.cca3];
+          const gdpObj = state.worldBank.gdpPct[c.cca3];
+          const persObj = state.worldBank.personnel[c.cca3];
+          const popVal = Number(c.population || profile.population || 0);
+          const areaVal = Number(c.area || profile.area || 0);
+          const budgetVal = budgetObj ? budgetObj.value : (profile.budgetUsd ?? null);
+          const gdpVal = gdpObj ? Number(gdpObj.value).toFixed(2) : (profile.gdpPct || null);
+          const estManpower = popVal ? Math.round(popVal * 0.42) : 0;
+
+          return {
+            cca3: c.cca3,
+            cca2: c.cca2 || profile.iso2 || '',
+            name: c.name || profile.name,
+            population: popVal,
+            area: areaVal,
+            flag: profile.flag || c.flagEmoji || '🏳️',
+            regionGroup: profile.region || (c.subregion && c.subregion.includes('South-Eastern Asia') ? 'ASEAN' : c.region),
+            subregion: profile.subregion || c.subregion || c.region,
+            highlightPH: c.cca3 === 'PHL',
+            activeTroops: profile.activeTroops || (persObj ? Number(persObj.value).toLocaleString() : 'Data via WB/SIPRI'),
+            reserveTroops: profile.reserveTroops || '—',
+            availManpower: estManpower ? estManpower.toLocaleString() : '—',
+            budgetUsd: budgetVal,
+            gdpPct: gdpVal,
+            landAssets: profile.landAssets || 'Standard ground & territorial security forces (detailed asset ledger varies by nation)',
+            airAssets: profile.airAssets || 'Transport, utility & surveillance aviation / air defense',
+            navalAssets: profile.navalAssets || (areaVal > 0 ? 'Coast guard, patrol & maritime security assets' : 'Maritime/territorial patrol'),
+            resources: profile.resources || ((c.subregion || c.region || 'Regional') + ' resources & trade corridors'),
+            modernizationNote: profile.modernizationNote || 'National defense & security posture tracked via public demographic and World Bank indicators.'
+          };
+        });
+      }
+
+      function formatCompactUsd(num) {
+        if (num === null || num === undefined || Number.isNaN(Number(num))) return 'N/A';
+        const n = Number(num);
+        if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+        if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+        if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+        return '$' + n.toLocaleString();
+      }
+
+      function formatCompactPop(num) {
+        if (!num) return '—';
+        if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(0) + 'K';
+        return String(num);
+      }
+
+      async function syncAll(showFeedback) {
+        if (isSyncing) return;
+        isSyncing = true;
+        const icon = document.getElementById('sync-icon');
+        if (icon) icon.classList.add('animate-spin');
+
+        try {
+          await Promise.allSettled([
+            fetchWeather(),
+            fetchFxRates(),
+            fetchCryptoRates(),
+            fetchRssFeeds(),
+            fetchAllNationsMilitaryData()
+          ]);
+          state.lastSync = new Date().toISOString();
+          saveState();
+          renderAll();
+          if (showFeedback) showToast('Sentinel PH synced live telemetry & feeds');
+        } finally {
+          isSyncing = false;
+          if (icon) icon.classList.remove('animate-spin');
+        }
+      }
+
+      function computeAlertLevel() {
+        const loc = state.weatherLocId || 'angeles';
+        const wx = state.weatherData[loc];
+        const highRain = wx && (wx.pop >= 70 || wx.temp >= 37);
+        const urgentCount = state.briefings.filter(b => b.urgent12h).length;
+        const watchlistHits = state.briefings.filter(b => {
+          const text = ((b.title || '') + ' ' + (b.summary || '')).toLowerCase();
+          return (state.watchlist || []).some(kw => kw && text.includes(kw.toLowerCase()));
+        }).length;
+
+        if (highRain || urgentCount >= 4 || watchlistHits >= 5) {
+          return { label: 'ELEVATED', cls: 'bg-amber/20 text-amber border-amber/50' };
+        }
+        return { label: 'LOW ALERT', cls: 'bg-emerald/15 text-emerald border-emerald/40' };
+      }
+
+      function renderHeaderTelemetry() {
+        const alertInfo = computeAlertLevel();
+        const badge = document.getElementById('alert-badge');
+        badge.textContent = alertInfo.label;
+        badge.className = 'px-1.5 py-0.5 text-[10px] font-mono font-semibold uppercase rounded border ' + alertInfo.cls;
+
+        const syncLine = document.getElementById('sync-status-line');
+        syncLine.textContent = state.lastSync
+          ? ('Synced ' + timeAgo(state.lastSync) + ' • ' + state.briefings.length + ' briefs')
+          : ('Cached • ' + state.briefings.length + ' briefs available');
+
+        const loc = WEATHER_LOCATIONS.find(w => w.id === state.weatherLocId) || WEATHER_LOCATIONS[0];
+        const wx = state.weatherData[loc.id] || { temp: 31, pop: 30, wind: 12 };
+        document.getElementById('wx-pill-loc').textContent = loc.label;
+        document.getElementById('wx-pill-val').textContent = wx.temp + '°C • ' + wx.pop + '%';
+
+        const phpUsd = Number((state.fxData.rates && state.fxData.rates.PHP) || 63.85).toFixed(2);
+        document.getElementById('fx-pill-val').textContent = '₱' + phpUsd + '/USD';
+
+        const btc = (state.cryptoData.coins && state.cryptoData.coins.bitcoin) || { price: 94250, change24h: 0 };
+        const btcK = btc.price >= 1000 ? (btc.price / 1000).toFixed(1) + 'k' : Math.round(btc.price);
+        document.getElementById('crypto-pill-val').textContent = 'BTC $' + btcK;
+
+        const savedBadge = document.getElementById('saved-count-badge');
+        if (state.savedIds.length > 0) {
+          savedBadge.textContent = String(state.savedIds.length);
+          savedBadge.classList.remove('hidden');
+        } else {
+          savedBadge.classList.add('hidden');
+        }
+
+        const preBtn = document.getElementById('btn-preshift');
+        if (state.preShiftOnly) {
+          preBtn.className = 'px-2 py-1.5 rounded-lg text-[11px] font-semibold border border-amber bg-amber/20 text-amber transition flex items-center gap-1 cursor-pointer';
+        } else {
+          preBtn.className = 'px-2 py-1.5 rounded-lg text-[11px] font-semibold border border-line bg-panel text-slate-300 hover:border-amber/50 hover:text-amber transition flex items-center gap-1 cursor-pointer';
+        }
+
+        const clearBtn = document.getElementById('btn-clear-search');
+        if (state.searchQuery.trim()) {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
+
+        renderTelemetryDrawer();
+      }
+
+      function renderTelemetryDrawer() {
+        const drawer = document.getElementById('telemetry-drawer');
+        if (!telemetryDrawerOpen) {
+          drawer.classList.add('hidden');
+          drawer.innerHTML = '';
+          return;
+        }
+        drawer.classList.remove('hidden');
+
+        if (telemetryDrawerOpen === 'weather') {
+          const loc = WEATHER_LOCATIONS.find(w => w.id === state.weatherLocId) || WEATHER_LOCATIONS[0];
+          const wx = state.weatherData[loc.id] || { temp: 31, pop: 30, wind: 12, hourly: [] };
+          const locButtons = WEATHER_LOCATIONS.map(w => {
+            const active = w.id === loc.id;
+            return '<button type="button" data-action="select-weather-loc" data-loc="' + w.id + '"' +
+              ' class="px-2 py-1 rounded-md text-[11px] font-medium border cursor-pointer ' +
+              (active ? 'bg-cyan/20 text-cyan border-cyan/50' : 'bg-panel text-slate-300 border-line') + '">' +
+              escapeHtml(w.label) + '</button>';
+          }).join('');
+
+          const hourlyHtml = (wx.hourly || []).length
+            ? '<div class="grid grid-cols-6 gap-1 mt-2 pt-2 border-t border-line/70 text-center font-mono">' +
+                wx.hourly.map(h =>
+                  '<div class="rounded bg-panel p-1 border border-line/60">' +
+                    '<div class="text-[10px] text-slate-400">' + escapeHtml(h.time) + '</div>' +
+                    '<div class="text-xs font-bold text-white">' + h.temp + '°</div>' +
+                    '<div class="text-[10px] text-cyan">' + h.pop + '%</div>' +
+                  '</div>'
+                ).join('') +
+              '</div>'
+            : '<p class="text-[11px] text-slate-400 mt-1.5">Tap Sync to refresh hourly rain & temperature forecast.</p>';
+
+          drawer.innerHTML =
+            '<div class="flex items-center justify-between mb-2">' +
+              '<span class="font-semibold text-white">🌤️ Shift Weather & Rain Radar — ' + escapeHtml(loc.label) + '</span>' +
+              '<span class="text-[11px] font-mono text-slate-400">Wind ' + wx.wind + ' km/h</span>' +
+            '</div>' +
+            '<div class="flex flex-wrap gap-1.5">' + locButtons + '</div>' +
+            hourlyHtml;
+        } else if (telemetryDrawerOpen === 'fx') {
+          const prev = state.fxData.prevPhpRates || {};
+          const pairs = [
+            { code: 'USD', label: 'US Dollar', val: prev.USD ?? state.fxData.rates.PHP },
+            { code: 'AUD', label: 'Australian $', val: prev.AUD ?? 41.8 },
+            { code: 'GBP', label: 'British £', val: prev.GBP ?? 50.4 },
+            { code: 'EUR', label: 'Euro €', val: prev.EUR ?? 59.0 },
+            { code: 'SGD', label: 'Singapore $', val: prev.SGD ?? 47.45 },
+            { code: 'JPY', label: '1 Yen ¥', val: prev.JPY ?? 0.413 }
+          ];
+
+          drawer.innerHTML =
+            '<div class="flex items-center justify-between mb-2">' +
+              '<span class="font-semibold text-white">💱 Philippine Peso (PHP) Multi-Currency</span>' +
+              '<span class="text-[10px] font-mono text-slate-400">' + (state.fxData.updatedAt ? ('Updated ' + timeAgo(state.fxData.updatedAt)) : 'Reference rates') + '</span>' +
+            '</div>' +
+            '<div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 font-mono">' +
+              pairs.map(p => {
+                const formatted = p.code === 'JPY' ? ('₱' + Number(p.val).toFixed(3)) : ('₱' + Number(p.val).toFixed(2));
+                return '<div class="rounded-lg bg-panel p-2 border border-line/80 flex items-center justify-between">' +
+                  '<div>' +
+                    '<div class="text-xs font-bold text-emerald">' + p.code + '/PHP</div>' +
+                    '<div class="text-[10px] text-slate-400 font-sans">' + p.label + '</div>' +
+                  '</div>' +
+                  '<div class="text-xs font-bold text-white">' + formatted + '</div>' +
+                '</div>';
+              }).join('') +
+            '</div>';
+        } else if (telemetryDrawerOpen === 'crypto') {
+          const coins = Object.values(state.cryptoData.coins || {});
+          drawer.innerHTML =
+            '<div class="flex items-center justify-between mb-2">' +
+              '<span class="font-semibold text-white">₿ Crypto & Global Liquidity Pulse</span>' +
+              '<span class="text-[10px] font-mono text-slate-400">' + (state.cryptoData.updatedAt ? ('Live ' + timeAgo(state.cryptoData.updatedAt)) : 'Cached') + '</span>' +
+            '</div>' +
+            '<div class="grid grid-cols-3 gap-1.5 font-mono">' +
+              coins.map(c => {
+                const chg = Number(c.change24h || 0);
+                const pos = chg >= 0;
+                const priceStr = c.price >= 100 ? ('$' + Number(c.price).toLocaleString(undefined, { maximumFractionDigits: 0 })) : ('$' + Number(c.price).toFixed(2));
+                return '<div class="rounded-lg bg-panel p-2 border border-line/80">' +
+                  '<div class="text-xs font-bold text-amber">' + escapeHtml(c.symbol) + '</div>' +
+                  '<div class="text-xs font-bold text-white mt-0.5">' + priceStr + '</div>' +
+                  '<div class="text-[10px] ' + (pos ? 'text-emerald' : 'text-rose') + ' mt-0.5">' + (pos ? '▲ ' : '▼ ') + Math.abs(chg).toFixed(1) + '%</div>' +
+                '</div>';
+              }).join('') +
+            '</div>';
+        }
+      }
+
+      function filterBriefings(list) {
+        const q = state.searchQuery.trim().toLowerCase();
+        return list.filter(item => {
+          if (state.activeNav === 'radar') {
+            if (state.activeDomain !== 'all' && item.domain !== state.activeDomain) return false;
+          }
+          if (state.sourceTierFilter !== 'all' && item.tier !== state.sourceTierFilter) return false;
+          if (state.preShiftOnly && !item.urgent12h) return false;
+
+          if (q) {
+            const hay = ((item.title || '') + ' ' + (item.summary || '') + ' ' + (item.details || '') + ' ' + (item.source || '') + ' ' + (item.impactTag || '') + ' ' + (item.subtag || '')).toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+      }
+
+      function renderBriefingCard(item) {
+        const isSaved = state.savedIds.includes(item.id);
+        const domainBadgeMap = {
+          ph_national: 'bg-rose/15 text-rose border-rose/30',
+          bpo_macro: 'bg-cyan/15 text-cyan border-cyan/30',
+          billionaires_crypto: 'bg-amber/15 text-amber border-amber/30',
+          ai_darkhorses: 'bg-violet/15 text-violet border-violet/30',
+          mobility: 'bg-emerald/15 text-emerald border-emerald/30',
+          geopolitics: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+          offshift: 'bg-teal-400/15 text-teal-300 border-teal-400/30'
+        };
+        const badgeCls = domainBadgeMap[item.domain] || 'bg-slate-800 text-slate-300 border-slate-700';
+        const safeLink = sanitizeUrl(item.link);
+
+        return (
+          '<article class="card-hover rounded-xl bg-panel border border-line hover:border-slate-600 p-3.5 space-y-2">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div class="flex flex-wrap items-center gap-1.5 min-w-0">' +
+                '<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ' + badgeCls + '">' + escapeHtml(item.impactTag) + '</span>' +
+                '<span class="text-[10px] font-medium text-slate-400">' + escapeHtml(item.subtag || item.tier) + '</span>' +
+                (item.urgent12h ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber/20 text-amber border border-amber/40">12H SHIFT</span>' : '') +
+              '</div>' +
+              '<button type="button" data-action="toggle-save" data-id="' + escapeHtml(item.id) + '" title="' + (isSaved ? 'Remove bookmark' : 'Save briefing') + '"' +
+                ' class="text-sm px-1.5 py-0.5 rounded-lg border cursor-pointer ' + (isSaved ? 'border-cyan/50 bg-cyan/15 text-cyan' : 'border-line text-slate-400 hover:text-white') + ' shrink-0">' +
+                (isSaved ? '🔖' : '📑') +
+              '</button>' +
+            '</div>' +
+
+            '<h3 data-action="open-deep-dive" data-id="' + escapeHtml(item.id) + '"' +
+              ' class="text-sm font-bold text-white leading-snug cursor-pointer hover:text-cyan transition">' +
+              highlightMatches(item.title) +
+            '</h3>' +
+
+            '<p class="text-xs text-slate-300 leading-relaxed">' +
+              highlightMatches(item.summary) +
+            '</p>' +
+
+            '<div class="rounded-lg bg-void/70 border border-line/70 px-2.5 py-1.5 text-[11px] text-slate-300">' +
+              '<span class="font-semibold text-cyan">Why it matters:</span> ' + escapeHtml(item.whyItMatters) +
+            '</div>' +
+
+            '<div class="pt-1 flex items-center justify-between gap-2 text-[11px] text-slate-400">' +
+              '<div class="truncate">' +
+                '<span class="font-semibold text-slate-300">' + escapeHtml(item.source) + '</span>' +
+                '<span> • ' + timeAgo(item.publishedAt) + '</span>' +
+              '</div>' +
+              '<div class="flex items-center gap-2 shrink-0">' +
+                '<button type="button" data-action="open-deep-dive" data-id="' + escapeHtml(item.id) + '"' +
+                  ' class="px-2 py-1 rounded-md bg-panel2 border border-line text-cyan font-semibold hover:border-cyan/50 cursor-pointer">' +
+                  'Deep Dive' +
+                '</button>' +
+                (safeLink
+                  ? ('<a href="' + escapeHtml(safeLink) + '" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-md bg-cyan/15 border border-cyan/30 text-cyan font-semibold hover:bg-cyan/25">Source ↗</a>')
+                  : '') +
+              '</div>' +
+            '</div>' +
+          '</article>'
+        );
+      }
+
+      function renderRadarView(container) {
+        const domains = [
+          { id: 'all', label: 'All Streams' },
+          { id: 'ph_national', label: '🇵🇭 PH & Ground' },
+          { id: 'bpo_macro', label: '💼 BPO & Macro' },
+          { id: 'billionaires_crypto', label: '💰 Billionaires & Crypto' },
+          { id: 'ai_darkhorses', label: '🚀 AI & Darkhorses' },
+          { id: 'mobility', label: '⚡ EVs & Moto' },
+          { id: 'geopolitics', label: '🛡️ Geopolitics' }
+        ];
+
+        const tiers = [
+          'all',
+          'Official Gov/Agency',
+          'National Media',
+          'Finance & Tech Wire',
+          'Auto & Mobility',
+          'National & Defense Wire'
+        ];
+
+        const domainPills = domains.map(d => {
+          const active = state.activeDomain === d.id;
+          return '<button type="button" data-action="select-domain" data-domain="' + d.id + '"' +
+            ' class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition cursor-pointer ' +
+            (active ? 'bg-cyan text-void border-cyan' : 'bg-panel text-slate-300 border-line hover:border-slate-500') + '">' +
+            d.label + '</button>';
+        }).join('');
+
+        const filtered = filterBriefings(state.briefings);
+
+        container.innerHTML =
+          '<div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">' +
+            domainPills +
+          '</div>' +
+
+          '<div class="flex items-center justify-between gap-2 text-[11px]">' +
+            '<div class="flex items-center gap-1.5 min-w-0">' +
+              '<span class="text-slate-400 shrink-0">Source:</span>' +
+              '<select id="tier-select" data-action="change-tier"' +
+                ' class="bg-panel border border-line rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-cyan truncate">' +
+                tiers.map(t => '<option value="' + escapeHtml(t) + '" ' + (state.sourceTierFilter === t ? 'selected' : '') + '>' + (t === 'all' ? 'All Source Types' : escapeHtml(t)) + '</option>').join('') +
+              '</select>' +
+            '</div>' +
+            '<span class="font-mono text-slate-400 shrink-0">' + filtered.length + ' items</span>' +
+          '</div>' +
+
+          '<div class="space-y-2.5">' +
+            (filtered.length
+              ? filtered.map(renderBriefingCard).join('')
+              : ('<div class="rounded-xl bg-panel border border-line p-6 text-center space-y-2">' +
+                  '<div class="text-2xl">📡</div>' +
+                  '<div class="text-sm font-semibold text-white">No briefings match your current filter</div>' +
+                  '<p class="text-xs text-slate-400">Try clearing search, disabling Pre-Shift 12h filter, or tapping Sync.</p>' +
+                  '<button type="button" data-action="reset-filters" class="px-3 py-1.5 rounded-lg bg-cyan text-void text-xs font-bold cursor-pointer">Reset Filters</button>' +
+                 '</div>')) +
+          '</div>';
+      }
+
+      function renderOffshiftView(container) {
+        const filters = [
+          { id: 'all', label: 'All Escapes' },
+          { id: 'food', label: '🍽️ Food & Late-Night' },
+          { id: 'roadtrip', label: '🚗 Road Trips & Tours' },
+          { id: 'flight_deal', label: '✈️ CRK & Travel Deals' }
+        ];
+
+        const q = state.searchQuery.trim().toLowerCase();
+        const curatedMatches = OFFSHIFT_CURATED.filter(item => {
+          if (offshiftFilter !== 'all' && item.category !== offshiftFilter) return false;
+          if (q) {
+            const hay = ((item.title || '') + ' ' + (item.summary || '') + ' ' + (item.driveTime || '') + ' ' + (item.budget || '')).toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+
+        const liveLifestyleBriefings = state.briefings.filter(b => {
+          if (b.domain !== 'offshift') return false;
+          if (q) {
+            const hay = ((b.title || '') + ' ' + (b.summary || '') + ' ' + (b.source || '')).toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+
+        container.innerHTML =
+          '<div class="rounded-xl bg-gradient-to-r from-teal-500/15 via-cyan/10 to-panel border border-teal-400/30 p-3">' +
+            '<div class="text-xs font-bold text-teal-300">🌴 Off-Shift Food, Road Trips & Escapes</div>' +
+            '<p class="text-[11px] text-slate-300 mt-0.5">Curated around Pampanga / Central Luzon drive times, post-shift timing, and Clark (CRK) travel feeds.</p>' +
+          '</div>' +
+
+          '<div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">' +
+            filters.map(f => {
+              const active = offshiftFilter === f.id;
+              return '<button type="button" data-action="select-offshift" data-filter="' + f.id + '"' +
+                ' class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border cursor-pointer ' +
+                (active ? 'bg-teal-400 text-void border-teal-400' : 'bg-panel text-slate-300 border-line') + '">' +
+                f.label + '</button>';
+            }).join('') +
+          '</div>' +
+
+          '<div class="space-y-2.5">' +
+            curatedMatches.map(c => {
+              const safeUrl = sanitizeUrl(c.link);
+              return (
+                '<article class="rounded-xl bg-panel border border-line p-3.5 space-y-2">' +
+                  '<div class="flex items-center justify-between gap-2">' +
+                    '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-teal-400/15 text-teal-300 border border-teal-400/30">' + escapeHtml(c.tag) + '</span>' +
+                    '<span class="text-[10px] font-mono text-amber">' + escapeHtml(c.budget) + '</span>' +
+                  '</div>' +
+                  '<h3 class="text-sm font-bold text-white">' + highlightMatches(c.title) + '</h3>' +
+                  '<p class="text-xs text-slate-300 leading-relaxed">' + highlightMatches(c.summary) + '</p>' +
+                  '<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] bg-void/70 rounded-lg p-2 border border-line/70">' +
+                    '<div><span class="text-cyan font-semibold">Distance/Time:</span> <span class="text-slate-200">' + escapeHtml(c.driveTime) + '</span></div>' +
+                    '<div><span class="text-emerald font-semibold">Shift Tip:</span> <span class="text-slate-200">' + escapeHtml(c.shiftTip) + '</span></div>' +
+                  '</div>' +
+                  '<div class="flex items-center justify-between pt-1 text-[11px]">' +
+                    '<span class="text-slate-400">Verify live hours/advisories before travel</span>' +
+                    (safeUrl ? ('<a href="' + escapeHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-md bg-teal-400/15 border border-teal-400/30 text-teal-300 font-semibold">Explore Guide ↗</a>') : '') +
+                  '</div>' +
+                '</article>'
+              );
+            }).join('') +
+            (liveLifestyleBriefings.length
+              ? ('<div class="pt-1 text-xs font-bold text-slate-300">Live Lifestyle & Travel Headlines</div>' + liveLifestyleBriefings.map(renderBriefingCard).join(''))
+              : '') +
+          '</div>';
+      }
+
+      function renderMilitaryView(container) {
+        const nations = getEnrichedNations();
+        const ph = nations.find(n => n.cca3 === 'PHL') || nations[0];
+        const partner = nations.find(n => n.cca3 === militaryCompareIso3) || nations.find(n => n.cca3 === 'CHN') || nations[1] || ph;
+
+        const regions = ['ALL', 'ASEAN', 'Indo-Pacific', 'Asia', 'Europe', 'Americas', 'Africa', 'Oceania'];
+
+        const q = (militarySearchQuery || state.searchQuery).trim().toLowerCase();
+        const filteredNations = nations.filter(n => {
+          if (militaryRegionFilter !== 'ALL') {
+            const matchGroup = n.regionGroup === militaryRegionFilter || n.region === militaryRegionFilter || (militaryRegionFilter === 'Indo-Pacific' && ['Eastern Asia', 'South-Eastern Asia', 'Southern Asia', 'Australia and New Zealand'].includes(n.subregion));
+            if (!matchGroup) return false;
+          }
+          if (q) {
+            const hay = ((n.name || '') + ' ' + (n.cca3 || '') + ' ' + (n.region || '') + ' ' + (n.subregion || '') + ' ' + (n.resources || '') + ' ' + (n.landAssets || '') + ' ' + (n.navalAssets || '') + ' ' + (n.airAssets || '')).toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        }).slice(0, 60);
+
+        const compareOptions = nations.slice(0, 120).map(n =>
+          '<option value="' + escapeHtml(n.cca3) + '" ' + (n.cca3 === partner.cca3 ? 'selected' : '') + '>' + escapeHtml(n.flag) + ' ' + escapeHtml(n.name) + ' (' + escapeHtml(n.cca3) + ')</option>'
+        ).join('');
+
+        const phPop = ph.population || 1;
+        const partnerPop = partner.population || 1;
+        const maxPop = Math.max(phPop, partnerPop, 1);
+
+        const phBudget = ph.budgetUsd || 0;
+        const partnerBudget = partner.budgetUsd || 0;
+        const maxBudget = Math.max(phBudget, partnerBudget, 1);
+
+        container.innerHTML =
+          '<section class="rounded-xl bg-gradient-to-br from-cyan/15 via-panel to-amber/10 border-2 border-cyan/50 p-3.5 space-y-2.5 shadow-lg">' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="text-2xl">' + escapeHtml(ph.flag) + '</span>' +
+                '<div>' +
+                  '<div class="flex items-center gap-1.5">' +
+                    '<h2 class="text-sm font-extrabold text-white">' + escapeHtml(ph.name) + ' — Armed Forces (AFP)</h2>' +
+                    '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan text-void uppercase">PINNED SPOTLIGHT</span>' +
+                  '</div>' +
+                  '<p class="text-[11px] text-cyan/90">' + escapeHtml(ph.subregion || ph.region) + ' • Archipelagic & Maritime Defense Focus</p>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 font-mono text-xs">' +
+              '<div class="rounded-lg bg-void/80 p-2 border border-line">' +
+                '<div class="text-[10px] text-slate-400 font-sans">Total Population</div>' +
+                '<div class="font-bold text-white">' + formatCompactPop(ph.population) + '</div>' +
+                '<div class="text-[9px] text-slate-400">Avail: ' + escapeHtml(ph.availManpower) + '</div>' +
+              '</div>' +
+              '<div class="rounded-lg bg-void/80 p-2 border border-line">' +
+                '<div class="text-[10px] text-slate-400 font-sans">Personnel</div>' +
+                '<div class="font-bold text-cyan">' + escapeHtml(ph.activeTroops) + '</div>' +
+                '<div class="text-[9px] text-slate-400">Res: ' + escapeHtml(ph.reserveTroops) + '</div>' +
+              '</div>' +
+              '<div class="rounded-lg bg-void/80 p-2 border border-line">' +
+                '<div class="text-[10px] text-slate-400 font-sans">Defense Budget</div>' +
+                '<div class="font-bold text-amber">' + formatCompactUsd(ph.budgetUsd) + '</div>' +
+                '<div class="text-[9px] text-slate-400">' + (ph.gdpPct ? (ph.gdpPct + '% GDP') : 'World Bank') + '</div>' +
+              '</div>' +
+              '<div class="rounded-lg bg-void/80 p-2 border border-line">' +
+                '<div class="text-[10px] text-slate-400 font-sans">Land Area</div>' +
+                '<div class="font-bold text-emerald">' + (ph.area ? (Number(ph.area).toLocaleString() + ' km²') : '300,000 km²') + '</div>' +
+                '<div class="text-[9px] text-slate-400">7,641 Islands</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="space-y-1 text-xs bg-void/65 rounded-lg p-2.5 border border-line/80">' +
+              '<div><span class="font-semibold text-emerald">🪖 Land Forces:</span> <span class="text-slate-200">' + escapeHtml(ph.landAssets) + '</span></div>' +
+              '<div><span class="font-semibold text-cyan">✈️ Air Power:</span> <span class="text-slate-200">' + escapeHtml(ph.airAssets) + '</span></div>' +
+              '<div><span class="font-semibold text-blue-300">⚓ Navy / Maritime:</span> <span class="text-slate-200">' + escapeHtml(ph.navalAssets) + '</span></div>' +
+              '<div><span class="font-semibold text-amber">⛏️ Key Resources:</span> <span class="text-slate-200">' + escapeHtml(ph.resources) + '</span></div>' +
+            '</div>' +
+            '<p class="text-[11px] text-slate-300"><span class="font-semibold text-white">Modernization Note:</span> ' + escapeHtml(ph.modernizationNote) + '</p>' +
+          '</section>' +
+
+          '<section class="rounded-xl bg-panel border border-line p-3.5 space-y-2.5">' +
+            '<div class="flex flex-wrap items-center justify-between gap-2">' +
+              '<span class="text-xs font-bold text-white">⚖️ Head-to-Head Comparison: 🇵🇭 Philippines vs.</span>' +
+              '<select id="mil-compare-select" data-action="change-compare-nation"' +
+                ' class="bg-panel2 border border-line rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan max-w-full">' +
+                compareOptions +
+              '</select>' +
+            '</div>' +
+
+            '<div class="space-y-2 text-xs font-mono">' +
+              '<div>' +
+                '<div class="flex justify-between text-[11px] mb-1">' +
+                  '<span class="text-cyan">🇵🇭 ' + formatCompactPop(ph.population) + '</span>' +
+                  '<span class="text-slate-400 font-sans">Population</span>' +
+                  '<span class="text-amber">' + escapeHtml(partner.flag) + ' ' + formatCompactPop(partner.population) + '</span>' +
+                '</div>' +
+                '<div class="h-2 rounded-full bg-void overflow-hidden flex">' +
+                  '<div class="bg-cyan h-full" style="width:' + Math.max(4, Math.round((phPop / maxPop) * 100)) + '%"></div>' +
+                '</div>' +
+                '<div class="h-2 rounded-full bg-void overflow-hidden flex mt-1">' +
+                  '<div class="bg-amber h-full" style="width:' + Math.max(4, Math.round((partnerPop / maxPop) * 100)) + '%"></div>' +
+                '</div>' +
+              '</div>' +
+
+              '<div>' +
+                '<div class="flex justify-between text-[11px] mb-1">' +
+                  '<span class="text-cyan">🇵🇭 ' + formatCompactUsd(ph.budgetUsd) + '</span>' +
+                  '<span class="text-slate-400 font-sans">Defense Budget (WB)</span>' +
+                  '<span class="text-amber">' + escapeHtml(partner.flag) + ' ' + formatCompactUsd(partner.budgetUsd) + '</span>' +
+                '</div>' +
+                '<div class="h-2 rounded-full bg-void overflow-hidden flex">' +
+                  '<div class="bg-cyan h-full" style="width:' + (phBudget ? Math.max(4, Math.round((phBudget / maxBudget) * 100)) : 4) + '%"></div>' +
+                '</div>' +
+                '<div class="h-2 rounded-full bg-void overflow-hidden flex mt-1">' +
+                  '<div class="bg-amber h-full" style="width:' + (partnerBudget ? Math.max(4, Math.round((partnerBudget / maxBudget) * 100)) : 4) + '%"></div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="rounded-lg bg-void/70 p-2.5 border border-line/70 text-[11px] space-y-1">' +
+              '<div class="font-bold text-amber">' + escapeHtml(partner.flag) + ' ' + escapeHtml(partner.name) + ' Overview</div>' +
+              '<div><span class="text-slate-400">Active / Reserve:</span> <span class="text-slate-200 font-mono">' + escapeHtml(partner.activeTroops) + ' / ' + escapeHtml(partner.reserveTroops) + '</span></div>' +
+              '<div><span class="text-slate-400">Land / Air / Navy:</span> <span class="text-slate-200">' + escapeHtml(partner.landAssets) + ' • ' + escapeHtml(partner.airAssets) + ' • ' + escapeHtml(partner.navalAssets) + '</span></div>' +
+              '<div><span class="text-slate-400">Resources:</span> <span class="text-slate-200">' + escapeHtml(partner.resources) + '</span></div>' +
+            '</div>' +
+          '</section>' +
+
+          '<section class="space-y-2">' +
+            '<div class="flex items-center justify-between">' +
+              '<h3 class="text-xs font-bold text-white">🌍 All Nations Directory (' + nations.length + ' available)</h3>' +
+              '<span class="text-[10px] font-mono text-slate-400">Showing ' + filteredNations.length + '</span>' +
+            '</div>' +
+
+            '<input id="mil-search-input" data-action="mil-search" type="search" value="' + escapeHtml(militarySearchQuery) + '"' +
+              ' placeholder="Filter any country, region, or resource (e.g. Japan, Vietnam, nickel, oil)..."' +
+              ' class="w-full px-3 py-1.5 rounded-lg bg-panel border border-line text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan" />' +
+
+            '<div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">' +
+              regions.map(r => {
+                const active = militaryRegionFilter === r;
+                return '<button type="button" data-action="select-mil-region" data-region="' + r + '"' +
+                  ' class="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap border cursor-pointer ' +
+                  (active ? 'bg-cyan text-void border-cyan' : 'bg-panel text-slate-300 border-line') + '">' +
+                  (r === 'ALL' ? 'All Regions' : r) + '</button>';
+              }).join('') +
+            '</div>' +
+
+            '<div class="space-y-2">' +
+              filteredNations.map(n =>
+                '<div class="rounded-xl bg-panel border ' + (n.highlightPH ? 'border-cyan/60 bg-cyan/5' : 'border-line') + ' p-3 space-y-1.5">' +
+                  '<div class="flex items-center justify-between gap-2">' +
+                    '<div class="flex items-center gap-2 min-w-0">' +
+                      '<span class="text-lg">' + escapeHtml(n.flag) + '</span>' +
+                      '<div class="min-w-0">' +
+                        '<div class="text-xs font-bold text-white truncate">' + escapeHtml(n.name) + ' <span class="text-[10px] font-mono text-slate-400">(' + escapeHtml(n.cca3) + ')</span></div>' +
+                        '<div class="text-[10px] text-slate-400 truncate">' + escapeHtml(n.subregion || n.region) + '</div>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="text-right font-mono text-xs shrink-0">' +
+                      '<div class="font-bold text-amber">' + formatCompactUsd(n.budgetUsd) + '</div>' +
+                      '<div class="text-[10px] text-slate-400">Pop: ' + formatCompactPop(n.population) + '</div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="text-[11px] text-slate-300 leading-snug">' +
+                    '<span class="text-slate-400">Personnel:</span> <span class="font-mono text-cyan">' + escapeHtml(n.activeTroops) + '</span>' +
+                    (n.gdpPct ? (' <span class="text-slate-400">•</span> <span class="font-mono text-emerald">' + escapeHtml(n.gdpPct) + '% GDP</span>') : '') +
+                  '</div>' +
+                  '<div class="text-[11px] text-slate-300">' +
+                    '<span class="text-slate-400">Forces & Resources:</span> ' + escapeHtml(n.navalAssets) + ' — ' + escapeHtml(n.resources) +
+                  '</div>' +
+                '</div>'
+              ).join('') +
+            '</div>' +
+          '</section>';
+      }
+
+      function renderSavedView(container) {
+        const savedBriefings = state.briefings.filter(b => state.savedIds.includes(b.id));
+        container.innerHTML =
+          '<div class="flex items-center justify-between">' +
+            '<div>' +
+              '<h2 class="text-sm font-bold text-white">🔖 Saved Briefings Vault</h2>' +
+              '<p class="text-[11px] text-slate-400">Stored locally in your browser for offline reading</p>' +
+            '</div>' +
+            (savedBriefings.length ? '<button type="button" data-action="clear-saved" class="px-2.5 py-1 rounded-lg border border-rose/40 text-rose text-[11px] font-semibold hover:bg-rose/10 cursor-pointer">Clear All</button>' : '') +
+          '</div>' +
+          '<div class="space-y-2.5">' +
+            (savedBriefings.length
+              ? savedBriefings.map(renderBriefingCard).join('')
+              : ('<div class="rounded-xl bg-panel border border-line p-6 text-center space-y-1.5">' +
+                  '<div class="text-2xl">📑</div>' +
+                  '<div class="text-sm font-semibold text-white">No saved briefings yet</div>' +
+                  '<p class="text-xs text-slate-400">Tap the bookmark icon on any card in Radar to keep it here.</p>' +
+                 '</div>')) +
+          '</div>';
+      }
+
+      function renderMainView() {
+        const container = document.getElementById('main-content');
+        document.querySelectorAll('.nav-item').forEach(btn => {
+          const isAct = btn.dataset.nav === state.activeNav;
+          btn.className = 'nav-item flex flex-col items-center justify-center py-1 rounded-lg transition relative cursor-pointer ' +
+            (isAct ? 'text-cyan bg-cyan/10' : 'text-slate-400 hover:text-slate-200');
+        });
+
+        if (state.activeNav === 'offshift') {
+          renderOffshiftView(container);
+        } else if (state.activeNav === 'military') {
+          renderMilitaryView(container);
+        } else if (state.activeNav === 'saved') {
+          renderSavedView(container);
+        } else {
+          renderRadarView(container);
+        }
+      }
+
+      function renderAll() {
+        renderHeaderTelemetry();
+        renderMainView();
+      }
+
+      function openDeepDive(id) {
+        const item = state.briefings.find(b => b.id === id);
+        if (!item) return;
+
+        const modal = document.getElementById('deep-dive-modal');
+        const body = document.getElementById('dd-body');
+        document.getElementById('dd-domain-pill').textContent = item.impactTag || 'Briefing';
+        document.getElementById('dd-source-tier').textContent = (item.source || '') + ' • ' + (item.tier || '') + ' • ' + timeAgo(item.publishedAt);
+
+        const safeUrl = sanitizeUrl(item.link);
+        const isSaved = state.savedIds.includes(item.id);
+
+        body.innerHTML =
+          '<h2 class="text-base font-bold text-white leading-snug">' + escapeHtml(item.title) + '</h2>' +
+          '<div class="rounded-xl bg-void/80 border border-cyan/30 p-3 space-y-1">' +
+            '<div class="text-[11px] font-mono uppercase tracking-wider text-cyan font-bold">Why This Matters</div>' +
+            '<p class="text-xs text-slate-200">' + escapeHtml(item.whyItMatters) + '</p>' +
+          '</div>' +
+          '<div class="space-y-2 text-xs text-slate-300 leading-relaxed">' +
+            '<p>' + escapeHtml(item.details || item.summary) + '</p>' +
+          '</div>' +
+          (safeUrl
+            ? ('<div class="rounded-xl bg-panel2 border border-line p-3 space-y-2">' +
+                '<div class="text-[11px] font-semibold text-slate-300">Direct Publisher Source Link</div>' +
+                '<div class="flex items-center gap-2">' +
+                  '<input type="text" readonly value="' + escapeHtml(safeUrl) + '"' +
+                    ' class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-void border border-line text-[11px] font-mono text-cyan select-all focus:outline-none" />' +
+                  '<button type="button" data-action="copy-url" data-url="' + escapeHtml(safeUrl) + '"' +
+                    ' class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-line text-xs font-semibold text-white hover:border-cyan shrink-0 cursor-pointer">' +
+                    'Copy URL' +
+                  '</button>' +
+                '</div>' +
+                '<div class="flex flex-wrap items-center justify-between gap-2 pt-1">' +
+                  '<button type="button" data-action="toggle-save" data-id="' + escapeHtml(item.id) + '"' +
+                    ' class="px-3 py-1.5 rounded-lg border border-line bg-panel text-xs font-semibold text-slate-200 hover:border-cyan cursor-pointer">' +
+                    (isSaved ? '🔖 Saved in Vault' : '📑 Save Briefing') +
+                  '</button>' +
+                  '<a href="' + escapeHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer"' +
+                    ' class="px-3.5 py-1.5 rounded-lg bg-cyan text-void text-xs font-bold hover:opacity-95 inline-flex items-center gap-1">' +
+                    '<span>Open Original Article</span>' +
+                    '<span>↗</span>' +
+                  '</a>' +
+                '</div>' +
+              '</div>')
+            : '<div class="rounded-xl bg-panel2 border border-line p-3 text-xs text-slate-400">Curated internal briefing — no external publisher link attached.</div>');
+
+        modal.classList.remove('hidden');
+      }
+
+      function openWatchlistModal() {
+        const modal = document.getElementById('watchlist-modal');
+        const body = document.getElementById('watchlist-body');
+
+        const presetHtml = PRESET_PACKS.map(p =>
+          '<button type="button" data-action="apply-preset" data-preset="' + escapeHtml(p.id) + '"' +
+            ' class="px-2.5 py-1.5 rounded-lg bg-panel2 border border-line hover:border-cyan text-left text-xs font-medium text-slate-200 transition cursor-pointer">' +
+            escapeHtml(p.label) + '</button>'
+        ).join('');
+
+        const chipsHtml = (state.watchlist || []).map(kw =>
+          '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber/15 border border-amber/40 text-amber text-xs font-medium">' +
+            '<span>' + escapeHtml(kw) + '</span>' +
+            '<button type="button" data-action="remove-keyword" data-kw="' + escapeHtml(kw) + '" class="text-amber hover:text-white font-bold cursor-pointer">×</button>' +
+          '</span>'
+        ).join('');
+
+        body.innerHTML =
+          '<div class="space-y-2">' +
+            '<div class="text-xs font-bold text-cyan">One-Tap Daily Edge Presets</div>' +
+            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">' + presetHtml + '</div>' +
+          '</div>' +
+          '<div class="space-y-2">' +
+            '<div class="text-xs font-bold text-white">Add Custom Keyword</div>' +
+            '<div class="flex gap-2">' +
+              '<input id="new-kw-input" type="text" placeholder="e.g. TaskUs, Converge, BYD, Subic..."' +
+                ' class="flex-1 px-3 py-1.5 rounded-lg bg-void border border-line text-xs text-white focus:outline-none focus:border-cyan" />' +
+              '<button type="button" data-action="add-keyword" class="px-3 py-1.5 rounded-lg bg-cyan text-void text-xs font-bold hover:opacity-95 cursor-pointer">Add</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="space-y-2">' +
+            '<div class="text-xs font-bold text-slate-300">Active Watchlist (' + (state.watchlist || []).length + ')</div>' +
+            '<div class="flex flex-wrap gap-1.5">' + (chipsHtml || '<span class="text-xs text-slate-500">No custom keywords set.</span>') + '</div>' +
+          '</div>';
+
+        modal.classList.remove('hidden');
+      }
+
+      function openInstallModal() {
+        const modal = document.getElementById('install-modal');
+        const body = document.getElementById('install-body');
+        const isLocalFile = location.protocol === 'file:';
+
+        body.innerHTML =
+          (deferredInstallPrompt
+            ? ('<div class="rounded-xl bg-cyan/15 border border-cyan/40 p-3 space-y-2">' +
+                '<div class="font-bold text-cyan text-sm">Ready for One-Tap Chrome Install</div>' +
+                '<p class="text-slate-200">Your browser supports direct app installation. Tap below to add Sentinel PH to your home screen or desktop apps.</p>' +
+                '<button type="button" data-action="trigger-native-install" class="w-full py-2 rounded-lg bg-cyan text-void font-bold text-xs cursor-pointer">Install Sentinel PH Now</button>' +
+               '</div>')
+            : '') +
+          (isLocalFile
+            ? ('<div class="rounded-xl bg-amber/15 border border-amber/40 p-3 space-y-1">' +
+                '<div class="font-bold text-amber">Opened as Local File (file://)</div>' +
+                '<p class="text-slate-200">You can bookmark this tab right now in Chrome, or host this HTML file on free HTTPS hosting (such as Cloudflare Pages or GitHub Pages) to unlock full "Add to Home Screen / Install App" standalone mode.</p>' +
+               '</div>')
+            : '') +
+          '<div class="rounded-xl bg-void/80 border border-line p-3 space-y-1.5">' +
+            '<div class="font-bold text-white">📱 Android (Google Chrome / Edge)</div>' +
+            '<ol class="list-decimal pl-4 space-y-1 text-slate-300">' +
+              '<li>Open Sentinel PH in <strong>Google Chrome</strong>.</li>' +
+              '<li>Tap the <strong>⋮ (three dots)</strong> menu in the top-right corner.</li>' +
+              '<li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>, then confirm.</li>' +
+            '</ol>' +
+          '</div>' +
+          '<div class="rounded-xl bg-void/80 border border-line p-3 space-y-1.5">' +
+            '<div class="font-bold text-white">💻 Desktop (Chrome / Edge)</div>' +
+            '<ol class="list-decimal pl-4 space-y-1 text-slate-300">' +
+              '<li>Click the <strong>Install icon</strong> in the right side of the address bar, or open <strong>⋮ → Cast, save, and share → Install page as app</strong>.</li>' +
+            '</ol>' +
+          '</div>' +
+          '<div class="rounded-xl bg-void/80 border border-line p-3 space-y-1.5">' +
+            '<div class="font-bold text-white">🍎 iPhone / iPad (Safari)</div>' +
+            '<ol class="list-decimal pl-4 space-y-1 text-slate-300">' +
+              '<li>Tap the <strong>Share</strong> button at the bottom of Safari.</li>' +
+              '<li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>' +
+            '</ol>' +
+          '</div>';
+
+        modal.classList.remove('hidden');
+      }
+
+      document.addEventListener('click', function (e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) {
+          if (e.target.id === 'deep-dive-modal') {
+            document.getElementById('deep-dive-modal').classList.add('hidden');
+          } else if (e.target.id === 'watchlist-modal') {
+            document.getElementById('watchlist-modal').classList.add('hidden');
+          } else if (e.target.id === 'install-modal') {
+            document.getElementById('install-modal').classList.add('hidden');
+          }
+          return;
+        }
+
+        const action = target.dataset.action;
+
+        if (action === 'install-app') {
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.finally(() => {
+              deferredInstallPrompt = null;
+            });
+          } else {
+            openInstallModal();
+          }
+        } else if (action === 'trigger-native-install') {
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.finally(() => {
+              deferredInstallPrompt = null;
+              document.getElementById('install-modal').classList.add('hidden');
+            });
+          }
+        } else if (action === 'toggle-preshift') {
+          state.preShiftOnly = !state.preShiftOnly;
+          saveState();
+          renderAll();
+          showToast(state.preShiftOnly ? 'Pre-Shift (12h urgent) filter ON' : 'Showing all timeframe briefings');
+        } else if (action === 'sync-all') {
+          syncAll(true);
+        } else if (action === 'toggle-drawer') {
+          const d = target.dataset.drawer;
+          telemetryDrawerOpen = telemetryDrawerOpen === d ? null : d;
+          renderTelemetryDrawer();
+        } else if (action === 'select-weather-loc') {
+          state.weatherLocId = target.dataset.loc || 'angeles';
+          saveState();
+          renderHeaderTelemetry();
+          fetchWeather().then(() => renderHeaderTelemetry());
+        } else if (action === 'clear-search') {
+          state.searchQuery = '';
+          document.getElementById('global-search').value = '';
+          renderMainView();
+          renderHeaderTelemetry();
+        } else if (action === 'switch-nav') {
+          state.activeNav = target.dataset.nav || 'radar';
+          saveState();
+          renderMainView();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (action === 'select-domain') {
+          state.activeDomain = target.dataset.domain || 'all';
+          saveState();
+          renderMainView();
+        } else if (action === 'reset-filters') {
+          state.activeDomain = 'all';
+          state.sourceTierFilter = 'all';
+          state.preShiftOnly = false;
+          state.searchQuery = '';
+          document.getElementById('global-search').value = '';
+          saveState();
+          renderAll();
+        } else if (action === 'toggle-save') {
+          const id = target.dataset.id;
+          if (!id) return;
+          if (state.savedIds.includes(id)) {
+            state.savedIds = state.savedIds.filter(x => x !== id);
+            showToast('Removed from Saved Vault');
+          } else {
+            state.savedIds.unshift(id);
+            showToast('Saved to offline Vault');
+          }
+          saveState();
+          renderHeaderTelemetry();
+          if (state.activeNav === 'saved') renderMainView();
+        } else if (action === 'clear-saved') {
+          state.savedIds = [];
+          saveState();
+          renderHeaderTelemetry();
+          renderMainView();
+          showToast('Cleared Saved Vault');
+        } else if (action === 'open-deep-dive') {
+          openDeepDive(target.dataset.id);
+        } else if (action === 'close-modal') {
+          const modalId = target.dataset.target;
+          if (modalId) document.getElementById(modalId).classList.add('hidden');
+        } else if (action === 'copy-url') {
+          const url = target.dataset.url || '';
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard')).catch(() => showToast('Select link box & copy'));
+          } else {
+            showToast('Select link box & copy');
+          }
+        } else if (action === 'open-watchlist') {
+          openWatchlistModal();
+        } else if (action === 'apply-preset') {
+          const pack = PRESET_PACKS.find(p => p.id === target.dataset.preset);
+          if (pack) {
+            const merged = new Set([...(state.watchlist || []), ...pack.keywords]);
+            state.watchlist = Array.from(merged).slice(0, 35);
+            saveState();
+            openWatchlistModal();
+            renderMainView();
+            renderHeaderTelemetry();
+            showToast('Added ' + pack.label + ' keywords');
+          }
+        } else if (action === 'add-keyword') {
+          const input = document.getElementById('new-kw-input');
+          const val = (input ? input.value : '').trim();
+          if (!val) return;
+          const set = new Set(state.watchlist || []);
+          set.add(val);
+          state.watchlist = Array.from(set).slice(0, 35);
+          saveState();
+          openWatchlistModal();
+          renderMainView();
+          renderHeaderTelemetry();
+          showToast('Added "' + val + '"');
+        } else if (action === 'remove-keyword') {
+          const kw = target.dataset.kw;
+          state.watchlist = (state.watchlist || []).filter(k => k !== kw);
+          saveState();
+          openWatchlistModal();
+          renderMainView();
+          renderHeaderTelemetry();
+        } else if (action === 'select-offshift') {
+          offshiftFilter = target.dataset.filter || 'all';
+          renderMainView();
+        } else if (action === 'select-mil-region') {
+          militaryRegionFilter = target.dataset.region || 'ALL';
+          renderMainView();
+        }
+      });
+
+      document.addEventListener('change', function (e) {
+        const target = e.target;
+        if (!target) return;
+        if (target.id === 'tier-select') {
+          state.sourceTierFilter = target.value || 'all';
+          saveState();
+          renderMainView();
+        } else if (target.id === 'mil-compare-select') {
+          militaryCompareIso3 = target.value || 'CHN';
+          renderMainView();
+        }
+      });
+
+      document.addEventListener('input', function (e) {
+        const target = e.target;
+        if (!target) return;
+        if (target.id === 'global-search') {
+          state.searchQuery = target.value || '';
+          renderHeaderTelemetry();
+          renderMainView();
+        } else if (target.id === 'mil-search-input') {
+          militarySearchQuery = target.value || '';
+          renderMainView();
+        }
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          document.getElementById('deep-dive-modal').classList.add('hidden');
+          document.getElementById('watchlist-modal').classList.add('hidden');
+          document.getElementById('install-modal').classList.add('hidden');
+        }
+      });
+
+      renderAll();
+      syncAll(false);
+      setInterval(() => syncAll(false), AUTO_REFRESH_MS);
+    })();
+  </script>
+</body>
+</html>
